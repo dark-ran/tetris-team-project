@@ -15,10 +15,10 @@
 | Unit Test | JUnit 5 | 단위 테스트 |
 | Coverage | JaCoCo | Line Coverage 관리 |
 | VCS | Git + GitHub | 코드 및 변경 이력 관리 |
-| CI | GitHub Actions | Push/PR 시 자동 검증 제안 |
-| 배포 | jpackage | Windows 실행파일 생성 제안 |
+| CI | GitHub Actions | Windows/macOS Push/PR 자동 검증 제안 |
+| 배포 | jpackage | OS별 Windows 실행파일/macOS 앱 생성 제안 |
 | 저장 | 파일 기반 | 설정/스코어보드 영구 저장 방식 제안 |
-| 대상 OS | Windows 11 | 팀 대상 OS 제안 |
+| 대상 OS | Windows 11 + macOS 26 이상 | 팀원 소유 기기별 배포 및 테스트 진행 |
 
 ### 사용하지 않는 방향
 
@@ -47,7 +47,7 @@ gradle/wrapper/gradle-wrapper.properties
 
 Gradle Wrapper를 사용하면 팀원이 Gradle을 별도로 설치하지 않아도 된다.
 
-JUnit 5와 JaCoCo도 Gradle dependency/plugin 설정을 통해 내려받아 사용하도록 구성한다.
+JUnit 5와 JaCoCo도 Gradle dependency/plugin 설정을 통해 내려받아 사용하도록 구성한다. macOS에서는 `./gradlew`의 실행 권한도 확인한다.
 
 ## 3. 기본 명령
 
@@ -68,6 +68,16 @@ JUnit 5와 JaCoCo도 Gradle dependency/plugin 설정을 통해 내려받아 사�
 ```powershell
 .\gradlew.bat test jacocoTestReport
 ```
+
+### macOS Build / Run / Coverage
+
+```bash
+./gradlew clean build
+./gradlew run
+./gradlew test jacocoTestReport
+```
+
+위 명령은 개발자용이며, 최종 사용자에게는 별도 명령 없이 실행되는 배포 패키지를 제공한다.
 
 ## 4. build.gradle 기본 구성 예시
 
@@ -107,7 +117,7 @@ test {
 }
 ```
 
-실제 dependency 버전과 packaging 설정은 구현 시 확정한다.
+실제 dependency 버전과 packaging 설정은 구현 시 확정한다. `jacocoTestReport` 생성과 `jacocoTestCoverageVerification`의 기준값을 설정하고, `check`에 검증 작업을 연결하여 CI에서 기준 미달을 감지하도록 구성한다.
 
 ## 5. Git Branch 전략 제안
 
@@ -170,6 +180,8 @@ Build / Test
 main
 ```
 
+PR 병합 전에는 관련 Issue 연결, 완료 기준 충족, 관련 테스트·CI 통과, 동료 리뷰 및 필요 문서 갱신을 확인한다.
+
 ## 7. Issue 사용
 
 Issue는 다음과 같은 내용을 기록하는 데 사용한다.
@@ -179,6 +191,7 @@ Issue는 다음과 같은 내용을 기록하는 데 사용한다.
 - 요구사항에서 모호한 부분
 - 팀에서 결정해야 하는 사항
 - 문제 발생 및 해결 과정
+- 요구사항 ID, 담당자, 검증 가능한 완료 기준(Acceptance Criteria)
 
 예:
 
@@ -221,7 +234,7 @@ docs/
 - `development.md`: 개발환경, Git, Build/Test/CI 방식
 - `decisions/`: 중요한 설계 결정이 별도 문서가 필요할 경우 사용
 
-문서 수정도 가능하면 Branch → Commit → PR → Review 흐름을 사용한다.
+문서 수정도 가능하면 Branch → Commit → PR → Review 흐름을 사용한다. 요구사항 변경 시 관련 Issue·테스트를 함께 갱신하고, 중요한 설계 결정만 이유·대안과 함께 `decisions/`에 기록한다.
 
 ## 9. GitHub Actions 제안
 
@@ -250,7 +263,11 @@ JaCoCo Coverage
 
 Coverage Report 생성 여부는 workflow와 `build.gradle`에서 명시적으로 설정한다.
 
-## 10. Windows 배포 제안
+- CI는 Windows 및 macOS 러너에서 Java 21 빌드·테스트를 수행하도록 제안한다. OS별 실행파일 패키징은 해당 OS 러너에서 별도 수행한다.
+- CI 성공만으로 Windows 11/macOS 26 실기기 실행 또는 과제 최소 사양 충족을 입증했다고 보지 않고 별도로 검증한다.
+- 위 예시 워크플로는 제안이며 실제 워크플로 파일을 생성하고 실행 결과를 확인해야 한다.
+
+## 10. Windows 및 macOS 배포 제안
 
 ```text
 Gradle
@@ -270,6 +287,10 @@ Windows 실행파일
 
 실행파일 이름은 팀에서 결정한다.
 
+macOS에서는 같은 Java 빌드 결과를 기반으로 macOS 환경에서 `jpackage`를 실행해 아이콘(`.icns`)이 포함된 `.app`을 생성하고 더블클릭 실행을 확인한다. 필요하면 `.dmg` 배포도 검토한다. Windows용 패키지는 Windows에서, macOS용 패키지는 macOS에서 각각 빌드한다.
+
+최초 실행 시 macOS 보안 정책(서명·공증 여부)에 따른 동작과 데이터 저장·재실행을 확인하며, 과제 제출용 배포 범위는 팀에서 결정한다.
+
 ## 11. 팀 작업 원칙 제안
 
 - 각자 담당 기능의 구현과 테스트를 함께 작성한다.
@@ -277,6 +298,10 @@ Windows 실행파일
 - 큰 설계 변경이나 요구사항 해석 문제는 Issue 또는 PR에서 논의한다.
 - 사소한 변경까지 모든 것을 Issue로 만들 필요는 없다.
 - 중요한 결정과 해결 과정은 나중에 제시할 수 있도록 기록을 남긴다.
+- 짧은 반복 주기마다 우선순위가 높은 작은 기능을 구현·테스트·통합하고 실행 가능한 결과물을 남긴다.
+- 각 반복 주기에서 진행 상황·막힌 점을 공유하고, 완료 후 개선점을 다음 작업에 반영한다.
+- 완료 정의(Definition of Done): 완료 기준 충족, 관련 테스트·CI 통과, 리뷰·통합 완료, 필요한 문서 갱신.
+- 2·3차 요구사항이 공개되면 기존 기능 영향과 회귀 테스트를 검토한 뒤 Issue로 작업을 분리한다.
 
 ## 12. 현재 팀 논의가 필요한 항목
 
@@ -288,3 +313,6 @@ Windows 실행파일
 - 색맹 모드의 구체적인 디자인
 - 저장 파일 형식
 - 패키지 구조 및 클래스 분리 수준
+- 텍스트 기반 UI에서 Swing 허용 범위 및 표현 방식
+- macOS CPU 아키텍처, OS별 저장 경로, 실행파일 검증 범위
+- 반복 개발 주기·Issue 우선순위·완료 정의의 운영 방식
