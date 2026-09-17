@@ -22,7 +22,8 @@ TetrisTeamProject/
 ├── .github/
 │   └── workflows/
 │       ├── ci.yml
-│       └── package-windows.yml
+│       ├── package-windows.yml
+│       └── package-macos.yml
 │
 ├── docs/
 │   ├── requirements.md
@@ -31,7 +32,8 @@ TetrisTeamProject/
 │   └── decisions/
 │
 ├── packaging/
-│   └── windows/
+│   ├── windows/
+│   └── macos/
 │
 ├── src/main/java/tetris/
 │   ├── Main.java
@@ -58,6 +60,8 @@ TetrisTeamProject/
     └── ui/
 ```
 
+위 디렉터리와 워크플로는 구현 계획이며, 실제 생성 여부는 작업 Issue/PR에서 관리한다.
+
 ## 2. 패키지별 역할 제안
 
 | 패키지 | 역할 |
@@ -72,6 +76,9 @@ TetrisTeamProject/
 | `settings` | 설정 데이터, 저장/복원 |
 | `scoreboard` | 점수 기록, 정렬, 저장/복원 |
 | `ui` | 시작 메뉴, 게임 화면, 설정, 스코어보드, 게임 오버 화면 |
+
+- 게임 규칙은 UI·OS와 분리하고, OS별 차이는 입력·저장·패키징 경계에서 처리한다.
+- 위 클래스와 계층은 제안이며 초기 구현에는 필요한 구성만 도입하고 기능 확장 시 분리한다.
 
 ## 3. 게임 호출 구조 제안
 
@@ -103,6 +110,8 @@ GameScreen
 
 이 구조는 UI와 게임 핵심 로직을 직접 결합하지 않고 분리하기 위한 제안이다.
 
+자동 낙하도 `GameLoop/Timer → Tick → GameEngine → GameState → GameScreen` 흐름으로 처리한다. 사용자 입력과 Tick의 상태 변경 순서·스레드 정책은 구현 전에 결정한다. `GameSnapshot`은 도입하더라도 별도 상태 원본으로 사용하지 않는다.
+
 ## 4. 설정 구조 제안
 
 ```text
@@ -116,6 +125,7 @@ SettingsRepository
 - `SettingsScreen`: 설정 UI
 - `SettingsService`: 설정 변경/검증
 - `SettingsRepository`: 파일 저장 및 복원
+- 설정 파일은 설치 경로와 분리된 사용자별 저장 경로를 사용하고 파일 부재·읽기 오류를 처리한다.
 
 ## 5. 스코어보드 구조 제안
 
@@ -130,6 +140,7 @@ ScoreRepository
 - `GameOverScreen`: 이름 입력 및 게임 종료 UI
 - `ScoreBoardService`: 점수 등록, 순위 계산, Top 기록 관리
 - `ScoreRepository`: 파일 저장 및 복원
+- 스코어보드도 사용자별 저장 경로에 두며, OS가 달라도 동일한 데이터 형식을 사용한다.
 
 ## 6. 상태 관리 제안
 
@@ -151,7 +162,7 @@ GamePhase
 - GAME_OVER
 ```
 
-이 부분은 확정사항이 아니며 실제 구현 규모를 보고 단순화할 수 있다.
+이 부분은 확정사항이 아니며 실제 구현 규모를 보고 단순화할 수 있다. `PAUSED`에서는 자동 낙하가 멈추고 종료는 가능해야 하며, `GAME_OVER` 이후 이름 입력·스코어보드·메뉴 복귀 흐름을 연결한다.
 
 ## 7. 역할 분담 초안
 
@@ -165,6 +176,7 @@ GamePhase
 - 실제 담당자는 팀 논의 후 결정한다.
 - 각 담당자는 자기 기능에 대한 테스트도 함께 작성한다.
 - 다른 담당자의 영역 수정이 필요한 경우 먼저 Issue 또는 팀 논의를 통해 공유한다.
+- 담당 구분은 코드 독점 권한이 아니며, 기능 단위 Issue에 담당자·리뷰어를 배정하고 업무량을 반복 주기마다 조정한다.
 
 ## 8. 구조 관련 논의 필요 사항
 
@@ -174,3 +186,5 @@ GamePhase
 - FSM을 사용할지
 - 패키지를 현재 수준으로 세분화할지 일부 통합할지
 - 각 팀원의 실제 담당 영역
+- Windows/macOS 저장 경로·입력 처리·CPU 아키텍처 및 OS별 패키징 경계
+- 자동 낙하 Tick과 입력 처리의 순서, 초기 구현에 필요한 최소 클래스
