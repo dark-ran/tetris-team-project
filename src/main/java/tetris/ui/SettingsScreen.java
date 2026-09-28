@@ -13,7 +13,12 @@ import javax.swing.JLabel;
 import javax.swing.JPanel;
 import javax.swing.JSeparator;
 
-/** 설정 항목의 자리. 저장과 실제 적용은 후속 담당 작업에서 연결한다. */
+/**
+ * 설정 항목의 자리. 저장과 실제 적용은 후속 담당 작업에서 연결한다.
+ *
+ * <p>현재 사용 기능: 요구 설정 항목 안내, 비활성 저장 버튼, 메뉴 복귀 콜백.</p>
+ * <p>후속 연결: SettingsService를 통한 크기·키·색각이상 설정과 저장·복원·초기화.</p>
+ */
 public class SettingsScreen extends JPanel {
     private static final List<SettingItem> SETTINGS = List.of(
             new SettingItem("화면 크기", "3개 이상 프리셋 연결 예정", AppTheme.CYAN),

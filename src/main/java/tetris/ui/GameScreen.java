@@ -12,7 +12,12 @@ import javax.swing.JPanel;
 import javax.swing.JSeparator;
 import tetris.game.GameState;
 
-/** 게임 상태 연결 전 보드 크기와 좌우 입력을 확인하는 화면. */
+/**
+ * 게임 상태 연결 전 보드 크기와 좌우 입력을 확인하는 화면.
+ *
+ * <p>현재 사용 기능: 20×10 BoardPreview, 좌우 키 입력, 종료 화면·메뉴·프로그램 종료 콜백.</p>
+ * <p>후속 연결: GameState 렌더링과 GameEngine·GameLoop·InputHandler의 실제 게임 동작.</p>
+ */
 public class GameScreen extends JPanel {
     private final BoardPreview boardPreview = new BoardPreview();
     private final JLabel positionLabel = ScreenSupport.mutedLabel("");

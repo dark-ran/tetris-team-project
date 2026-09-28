@@ -13,7 +13,12 @@ import javax.swing.JButton;
 import javax.swing.JLabel;
 import javax.swing.JPanel;
 
-/** 교체 가능한 시작 메뉴. 게임 규칙이나 저장소에 의존하지 않는다. */
+/**
+ * 교체 가능한 시작 메뉴. 게임 규칙이나 저장소에 의존하지 않는다.
+ *
+ * <p>현재 사용 기능: 게임 시작·설정·스코어보드·종료 콜백과 메뉴 키보드 탐색.</p>
+ * <p>후속 연결: 메뉴가 추가되면 버튼과 AppController 콜백을 함께 확장한다.</p>
+ */
 public class StartMenu extends JPanel {
     private final JButton startButton;
 

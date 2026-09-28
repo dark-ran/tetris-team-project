@@ -8,7 +8,12 @@ import javax.swing.JButton;
 import javax.swing.JLabel;
 import javax.swing.JPanel;
 
-/** 최종 점수 표시와 재시작·메뉴 이동을 담당한다. */
+/**
+ * 최종 점수 표시와 재시작·메뉴 이동을 담당한다.
+ *
+ * <p>현재 사용 기능: 최종 점수 표시, 재시작·스코어보드·메뉴·프로그램 종료 콜백.</p>
+ * <p>후속 연결: 기록 진입 여부 확인, 이름 입력, 등록한 점수 강조 표시.</p>
+ */
 public class GameOverScreen extends JPanel {
     private static final String SCORE_UNMEASURED = "최종 점수: 미측정 (게임 연결 전)";
 

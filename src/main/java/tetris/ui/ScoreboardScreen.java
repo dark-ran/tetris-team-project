@@ -12,7 +12,12 @@ import javax.swing.table.DefaultTableCellRenderer;
 import javax.swing.table.DefaultTableModel;
 import tetris.scoreboard.ScoreEntry;
 
-/** 순위 표시용 임시 화면. 전달받은 기록만 표시한다. */
+/**
+ * 순위 표시용 임시 화면. 전달받은 기록만 표시한다.
+ *
+ * <p>현재 사용 기능: 전달받은 ScoreEntry 목록의 순위·이름·점수 표시와 메뉴 복귀.</p>
+ * <p>후속 연결: ScoreBoardService 조회, 신규 기록 강조, ScoreRepository 영구 저장.</p>
+ */
 public class ScoreboardScreen extends JPanel {
     private final DefaultTableModel records = new DefaultTableModel(new String[] {"순위", "이름", "점수"}, 0) {
         @Override
