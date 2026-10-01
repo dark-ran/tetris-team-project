@@ -4,7 +4,6 @@ import java.awt.BorderLayout;
 import java.awt.Component;
 import java.awt.Dimension;
 import java.awt.Font;
-import java.awt.event.KeyEvent;
 import javax.swing.Box;
 import javax.swing.JButton;
 import javax.swing.JLabel;
@@ -13,18 +12,17 @@ import javax.swing.JSeparator;
 import tetris.game.GameState;
 
 /**
- * 게임 상태 연결 전 보드 크기와 좌우 입력을 확인하는 화면.
+ * 게임 상태 연결 전 보드와 화면 전환 구조를 제공하는 화면.
  *
- * <p>현재 사용 기능: 20×10 BoardPreview, 좌우 키 입력, 종료 화면·메뉴·프로그램 종료 콜백.</p>
+ * <p>현재 사용 기능: 보드 크기 표시와 화면 전환 콜백. 임시 블록 조작은 제거했다.</p>
  * <p>후속 연결: GameState 렌더링과 GameEngine·GameLoop·InputHandler의 실제 게임 동작.</p>
  */
 public class GameScreen extends JPanel {
     private final BoardPreview boardPreview = new BoardPreview();
-    private final JLabel positionLabel = ScreenSupport.mutedLabel("");
 
     public GameScreen(Runnable onFinishPreview, Runnable onBack, Runnable onExit) {
         ScreenSupport.prepareScreen(this, "게임",
-                "← → 또는 A D로 입력을 확인할 수 있습니다. 낙하·충돌·회전·점수는 아직 연결되지 않았습니다.");
+                "게임을 준비하고 있습니다.");
         JButton finishButton = ScreenSupport.primaryButton("종료 화면 보기", onFinishPreview);
 
         JPanel center = ScreenSupport.transparentPanel(new BorderLayout(28, 0));
@@ -35,30 +33,28 @@ public class GameScreen extends JPanel {
                 ScreenSupport.button("시작 메뉴", onBack),
                 ScreenSupport.dangerButton("프로그램 종료", onExit)), BorderLayout.SOUTH);
 
-        bindPreviewMovementKeys(KeyEvent.VK_LEFT, KeyEvent.VK_A, -1, "preview-left");
-        bindPreviewMovementKeys(KeyEvent.VK_RIGHT, KeyEvent.VK_D, 1, "preview-right");
         SwingKeyBindings.backOnEscape(this, onBack);
     }
 
     private JPanel boardFrame() {
         JPanel area = ScreenSupport.framedPanel(new BorderLayout(0, 12));
-        JLabel title = ScreenSupport.sectionTitle("보드 20 × 10    [입력 확인용]");
+        JLabel title = ScreenSupport.sectionTitle("보드 20 × 10");
         area.add(title, BorderLayout.NORTH);
         area.add(boardPreview, BorderLayout.CENTER);
-        JLabel notice = ScreenSupport.mutedLabel("보라색 T 블록은 입력 확인용이며 실제 게임 상태가 아닙니다.");
+        JLabel notice = ScreenSupport.mutedLabel("게임 시작 후 현재 블록과 쌓인 블록을 표시합니다.");
         notice.setHorizontalAlignment(JLabel.CENTER);
         area.add(notice, BorderLayout.SOUTH);
         return area;
     }
 
-    /** 다음 블록·점수 등 게임 화면 요구 항목의 자리. 값은 연결 예정이다. */
+    /** 점수와 다음 블록 표시 자리, 조작 안내를 구성한다. */
     private JPanel statusSidebar() {
         JPanel summary = ScreenSupport.framedPanel(new BorderLayout());
         summary.setPreferredSize(new Dimension(260, 0));
         JPanel sections = ScreenSupport.verticalPanel();
         sections.add(informationSection("점수", "미연결", "게임 엔진 연결 후 계산"));
         sections.add(sectionDivider());
-        sections.add(informationSection("다음 블록", "미연결", "블록 큐 연결 예정"));
+        sections.add(informationSection("다음 블록", "미연결", "게임 상태 연결 후 표시"));
         sections.add(sectionDivider());
         sections.add(controlSection());
         sections.add(Box.createVerticalGlue());
@@ -90,8 +86,6 @@ public class GameScreen extends JPanel {
         controls.add(ScreenSupport.mutedLabel("[↓] [↑] [Space]  연결 예정"));
         controls.add(Box.createVerticalStrut(8));
         controls.add(ScreenSupport.mutedLabel("[Esc]  시작 메뉴"));
-        controls.add(Box.createVerticalStrut(18));
-        controls.add(positionLabel);
         return controls;
     }
 
@@ -103,32 +97,12 @@ public class GameScreen extends JPanel {
         return separator;
     }
 
-    /** 실제 입력 계층 연결 전 좌우 입력 경로를 확인하기 위한 임시 바인딩. */
-    private void bindPreviewMovementKeys(int arrowKey, int letterKey, int direction, String actionName) {
-        Runnable move = () -> {
-            boardPreview.moveHorizontally(direction);
-            updatePreviewPositionLabel();
-        };
-        SwingKeyBindings.bindToScreen(this, arrowKey, actionName + "-arrow", move);
-        SwingKeyBindings.bindToScreen(this, letterKey, actionName + "-letter", move);
-    }
-
-    private void updatePreviewPositionLabel() {
-        positionLabel.setText("미리보기 위치: " + (boardPreview.pieceColumn() + 1) + "열");
-    }
-
     public void showScreen() {
-        boardPreview.reset();
-        updatePreviewPositionLabel();
         SwingKeyBindings.focus(boardPreview);
     }
 
-    int previewColumn() {
-        return boardPreview.pieceColumn();
-    }
-
     public void render(GameState state) {
-        // TODO(Req1 / WS-03): WS-01/02에서 확정한 상태·좌표 계약으로 보드와 점수를 표시한다.
+        // TODO: GameState의 보드 사본, 현재 블록, 기준 행·열과 다음 블록 목록을 표시한다.
         throw new UnsupportedOperationException("TODO: 게임 상태를 화면에 표시");
     }
 }
