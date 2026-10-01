@@ -84,7 +84,7 @@ class GameEngineTest {
         assertArrayEquals(new int[20][10], state.board().snapshot());
     }
 
-    @ParameterizedTest(name = "{0}은 보드 위쪽 가운데에서 생성")
+    @ParameterizedTest(name = "{0}의 가장 위쪽 칸은 보드 첫 행에서 생성")
     @EnumSource(PieceType.class)
     void everyPieceStartsAtTheAgreedPosition(PieceType type) {
         GameEngine engine = engine(type);
@@ -92,7 +92,11 @@ class GameEngineTest {
         GameState state = engine.state();
         assertEquals(GamePhase.RUNNING, state.phase());
         assertEquals(type, state.currentPiece().type());
-        assertEquals(0, state.currentRow());
+        assertEquals(type == PieceType.I ? -1 : 0, state.currentRow());
+        int firstOccupiedBoardRow = Arrays.stream(state.currentPiece().cells())
+                .mapToInt(cell -> state.currentRow() + cell[0]).min().orElseThrow();
+        assertEquals(0, firstOccupiedBoardRow);
+        assertTrue(state.board().canPlace(state.currentPiece(), state.currentRow(), state.currentColumn()));
         int squareSize = type == PieceType.I ? 4 : type == PieceType.O ? 2 : 3;
         assertEquals((10 - squareSize) / 2, state.currentColumn());
         assertEquals(List.of(type), state.nextPieces());
@@ -183,6 +187,86 @@ class GameEngineTest {
         assertEquals(2, engine.state().board().snapshot()[19][4]);
     }
 
+    @ParameterizedTest(name = "I의 {0}은 보정한 시작 위치에서 한 칸만 하강")
+    @EnumSource(value = GameAction.class, names = {"DOWN", "TICK"})
+    void straightPieceDropsOneRowFromItsAdjustedSpawn(GameAction action) {
+        GameEngine engine = engine(PieceType.I);
+        engine.newGame();
+        assertEquals(-1, engine.state().currentRow());
+
+        GameActionResult result = engine.apply(action);
+
+        assertEquals(1, result.droppedRows());
+        assertFalse(result.pieceLocked());
+        assertEquals(0, engine.state().currentRow());
+        for (int[] cell : engine.state().currentPiece().cells()) {
+            assertEquals(1, engine.state().currentRow() + cell[0]);
+        }
+        assertEquals(0, occupiedCells(engine.state()));
+    }
+
+    @Test
+    @DisplayName("첫 행의 I는 즉시 낙하로 19칸 내려가고 다음 I도 첫 행에서 생성")
+    void straightPieceHardDropIncludesTheFirstBoardRow() {
+        GameEngine engine = engine(PieceType.I);
+        engine.newGame();
+
+        GameActionResult result = engine.apply(GameAction.HARD_DROP);
+
+        assertEquals(19, result.droppedRows());
+        assertTrue(result.pieceLocked());
+        assertTrue(result.pieceSpawned());
+        assertEquals(-1, engine.state().currentRow());
+        assertEquals(2, engine.state().spawnedPieces());
+        int[][] fixedCells = engine.state().board().snapshot();
+        for (int column = 3; column <= 6; column++) {
+            assertEquals(PieceType.I.cellValue(), fixedCells[Board.ROWS - 1][column]);
+        }
+        assertEquals(4, occupiedCells(engine.state()));
+    }
+
+    @Test
+    @DisplayName("첫 행의 I 회전은 경계로 거부하고 한 칸 하강 후에는 허용")
+    void straightPieceCanRotateAfterDescendingFromTheFirstRow() {
+        GameEngine engine = engine(PieceType.I);
+        engine.newGame();
+        int[][] original = engine.state().currentPiece().cells();
+
+        assertUnchanged(engine.apply(GameAction.ROTATE_CLOCKWISE), GamePhase.RUNNING);
+        assertEquals(-1, engine.state().currentRow());
+        assertArrayEquals(original, engine.state().currentPiece().cells());
+
+        assertEquals(1, engine.apply(GameAction.DOWN).droppedRows());
+        assertTrue(engine.apply(GameAction.ROTATE_CLOCKWISE).changed());
+        GameState state = engine.state();
+        assertEquals(0, state.currentRow());
+        assertTrue(state.board().canPlace(state.currentPiece(), state.currentRow(), state.currentColumn()));
+    }
+
+    @Test
+    @DisplayName("I를 보드 첫 행까지 쌓으면 마지막 고정 후 다음 생성에서 게임오버")
+    void straightPieceSpawnCollisionIncludesTheFirstBoardRow() {
+        GameEngine engine = engine(PieceType.I);
+        engine.newGame();
+        for (int count = 0; count < Board.ROWS - 1; count++) {
+            assertFalse(engine.apply(GameAction.HARD_DROP).becameGameOver());
+        }
+        assertEquals(GamePhase.RUNNING, engine.state().phase());
+        assertEquals(Board.ROWS, engine.state().spawnedPieces());
+
+        GameActionResult result = engine.apply(GameAction.HARD_DROP);
+
+        assertEquals(0, result.droppedRows());
+        assertTrue(result.pieceLocked());
+        assertFalse(result.pieceSpawned());
+        assertTrue(result.becameGameOver());
+        assertNull(engine.state().currentPiece());
+        for (int column = 3; column <= 6; column++) {
+            assertEquals(PieceType.I.cellValue(), engine.state().board().snapshot()[0][column]);
+        }
+        assertEquals(Board.ROWS * 4, occupiedCells(engine.state()));
+    }
+
     @Test
     @DisplayName("회전은 위치를 유지하며 네 번 회전하면 원래 모양")
     void rotationChangesTheShapeWithoutMovingTheOrigin() {
@@ -210,7 +294,8 @@ class GameEngineTest {
     void rotationCannotCrossTheWallOrFloor() {
         GameEngine engine = engine(PieceType.I);
         engine.newGame();
-        engine.apply(GameAction.ROTATE_CLOCKWISE);
+        assertEquals(1, engine.apply(GameAction.DOWN).droppedRows());
+        assertTrue(engine.apply(GameAction.ROTATE_CLOCKWISE).changed());
         moveToColumn(engine, 7);
         int[][] original = engine.state().currentPiece().cells();
         assertUnchanged(engine.apply(GameAction.ROTATE_CLOCKWISE), GamePhase.RUNNING);
@@ -264,7 +349,8 @@ class GameEngineTest {
         engine.newGame();
         GameActionResult result = null;
         for (int column = 0; column < 10; column++) {
-            engine.apply(GameAction.ROTATE_CLOCKWISE);
+            assertEquals(1, engine.apply(GameAction.DOWN).droppedRows());
+            assertTrue(engine.apply(GameAction.ROTATE_CLOCKWISE).changed());
             moveToColumn(engine, column - 2);
             result = engine.apply(GameAction.HARD_DROP);
         }

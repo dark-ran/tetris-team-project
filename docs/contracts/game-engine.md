@@ -61,11 +61,12 @@ GameEngine engine = new GameEngine(new Random(21L));
 assert engine.state().phase() == GamePhase.READY;
 
 engine.newGame();
+int startingRow = engine.state().currentRow();
 GameActionResult result = engine.apply(GameAction.DOWN);
 GameState state = engine.state();
 
 assert state.phase() == GamePhase.RUNNING;
-assert state.currentRow() == 1;
+assert state.currentRow() == startingRow + 1;
 assert result.droppedRows() == 1;
 assert !result.pieceLocked();
 assert state.score() == 0;
@@ -183,12 +184,14 @@ O 회전은 차지하는 칸이 같아 `changed()`가 `false`이다. 즉시 낙�
 import tetris.game.GameAction;
 import tetris.game.GameActionResult;
 import tetris.game.GameEngine;
+import tetris.piece.PieceType;
 
 GameEngine engine = new GameEngine();
 engine.newGame();
+int expectedDroppedRows = engine.state().currentPiece().type() == PieceType.I ? 19 : 18;
 GameActionResult result = engine.apply(GameAction.HARD_DROP);
 
-assert result.droppedRows() == 18;
+assert result.droppedRows() == expectedDroppedRows;
 assert result.pieceLocked();
 assert result.pieceSpawned();
 assert result.clearedRows() == 0;
@@ -245,17 +248,18 @@ import tetris.game.GamePhase;
 
 GameEngine engine = new GameEngine();
 engine.newGame();
+int startingRow = engine.state().currentRow();
 engine.apply(GameAction.DOWN);
 engine.apply(GameAction.TOGGLE_PAUSE);
 GameActionResult ignored = engine.apply(GameAction.TICK);
 
 assert engine.state().phase() == GamePhase.PAUSED;
-assert engine.state().currentRow() == 1;
+assert engine.state().currentRow() == startingRow + 1;
 assert !ignored.changed();
 
 engine.apply(GameAction.TOGGLE_PAUSE);
 engine.apply(GameAction.TICK);
-assert engine.state().currentRow() == 2;
+assert engine.state().currentRow() == startingRow + 2;
 ```
 
 ## 6. 고정부터 게임오버까지
@@ -274,8 +278,14 @@ flowchart TD
     Over --> Result
 ```
 
-기본 시작 위치는 기준 행 0, 기준 열 `(Board.COLUMNS - piece.rotationSize()) / 2`이다.
-현재 회전은 벽 근처 위치 보정과 숨겨진 행을 사용하지 않는다.
+기본 시작 위치의 기준 행은 I가 -1, 나머지 여섯 종류가 0이다. 초기 I의 실제 칸은 내부 행 1에
+있으므로 기준 행 -1을 더하면 보드 행 0에 놓인다. 모든 종류의 가장 위쪽 칸이 첫 행에서 나타난다.
+기준 열은 `(Board.COLUMNS - piece.rotationSize()) / 2`로 계산한다.
+
+I의 4×4 회전 기준과 내부 모양은 유지한다. 기준 행 -1에서 세로로 회전하면 실제 칸 일부가 보드
+밖으로 나가므로 회전을 거부한다. 한 칸 하강해 기준 행 0이 되면 회전할 수 있다.
+현재 회전은 벽·위쪽 경계에서 위치를 보정하지 않으며 숨겨진 행도 사용하지 않는다.
+빈 보드에서 생성 직후 즉시 낙하한 거리는 I가 19칸, 나머지 종류가 18칸이다.
 
 게임오버 후 들어오는 행동은 변경 없는 결과를 반환한다. `becameGameOver()`는 다시 `true`가 되지
 않으므로 같은 게임오버에 랭킹 후처리를 반복하지 않을 수 있다. `newGame()`에는 행동 결과가
@@ -321,19 +331,21 @@ flowchart TD
 
 ### 시작 위치 규칙 교체
 
-다음 클래스는 블록을 보드 왼쪽에서 생성한다. 기존 엔진을 상속하거나 수정할 필요 없이
-`PieceSpawnPolicy`의 두 메서드를 구현한다.
+다음 클래스는 기본 규칙의 생성 행을 유지하면서 블록을 보드 왼쪽에서 생성한다.
+기존 엔진을 상속하거나 수정할 필요 없이 `PieceSpawnPolicy`의 두 메서드를 구현한다.
 
 ```java
 import java.util.Objects;
+import tetris.game.CenteredPieceSpawnPolicy;
 import tetris.game.PieceSpawnPolicy;
 import tetris.piece.Tetromino;
 
 public final class LeftAlignedPieceSpawnPolicy implements PieceSpawnPolicy {
+    private final PieceSpawnPolicy defaultSpawnPolicy = new CenteredPieceSpawnPolicy();
+
     @Override
     public int startingRow(Tetromino piece) {
-        Objects.requireNonNull(piece, "생성할 블록이 필요합니다.");
-        return 0;
+        return defaultSpawnPolicy.startingRow(piece);
     }
 
     @Override
@@ -357,9 +369,9 @@ engine.newGame();
 assert engine.state().currentColumn() == 0;
 ```
 
-기본 규칙은 `startingRow()`에서 0, `startingColumn()`에서 가운데 기준 열을 반환한다.
-기준 행 -1이 항상 유효한 것은 아니다. 내부 빈 부분이 있는 I처럼 실제 칸이 보드 안인 경우만
-허용된다.
+기본 규칙은 `startingRow()`에서 I는 -1, 나머지 종류는 0을 반환한다.
+`startingColumn()`은 가운데 기준 열을 반환한다. 생성 위치 규칙을 바꿀 때도 실제 칸이 모두
+보드 안에 있어야 한다. 다른 종류의 기준 행까지 -1로 바꾸면 첫 생성이 실패할 수 있다.
 
 ### 미리보기 개수를 세 개로 변경
 
