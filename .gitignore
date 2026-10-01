@@ -6,7 +6,11 @@
 
 # Gradle
 .gradle/
+.gradle-user/
 build/
+
+# Tools & Local JDK
+.tools/
 
 # IDE
 .idea/
