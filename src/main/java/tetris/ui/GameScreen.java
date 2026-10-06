@@ -10,15 +10,24 @@ import javax.swing.JLabel;
 import javax.swing.JPanel;
 import javax.swing.JSeparator;
 import tetris.game.GameState;
+import tetris.game.GamePhase;
 
 /**
  * 게임 상태 연결 전 보드와 화면 전환 구조를 제공하는 화면.
  *
- * <p>현재 사용 기능: 보드 크기 표시와 화면 전환 콜백. 임시 블록 조작은 제거했다.</p>
- * <p>후속 연결: GameState 렌더링과 GameEngine·GameLoop·InputHandler의 실제 게임 동작.</p>
+ * <p>
+ * 현재 사용 기능: 보드 크기 표시와 화면 전환 콜백. 임시 블록 조작은 제거했다.
+ * </p>
+ * <p>
+ * 후속 연결: GameState 렌더링과 GameEngine·GameLoop·InputHandler의 실제 게임 동작.
+ * </p>
  */
 public class GameScreen extends JPanel {
     private final BoardPreview boardPreview = new BoardPreview();
+    private final JLabel scoreLabel = new JLabel("0");
+    private final JLabel levelLabel = new JLabel("1");
+    private final JPanel nextPiecePanel = new JPanel(new BorderLayout());
+    private final JLabel pauseLabel = new JLabel("");
 
     public GameScreen(Runnable onFinishPreview, Runnable onBack, Runnable onExit) {
         ScreenSupport.prepareScreen(this, "게임",
@@ -52,9 +61,18 @@ public class GameScreen extends JPanel {
         JPanel summary = ScreenSupport.framedPanel(new BorderLayout());
         summary.setPreferredSize(new Dimension(260, 0));
         JPanel sections = ScreenSupport.verticalPanel();
-        sections.add(informationSection("점수", "미연결", "게임 엔진 연결 후 계산"));
+        // sections.add(informationSection("점수", "미연결", "게임 엔진 연결 후 계산"));
+        sections.add(informationSection("점수", scoreLabel, "현재 점수"));
         sections.add(sectionDivider());
-        sections.add(informationSection("다음 블록", "미연결", "게임 상태 연결 후 표시"));
+        // 레벨 표시
+        sections.add(informationSection("레벨", levelLabel, "현재 레벨"));
+        sections.add(sectionDivider());
+        // 일시정지 표시
+        pauseLabel.setFont(AppTheme.font(Font.BOLD, 18f));
+        sections.add(pauseLabel);
+        sections.add(sectionDivider());
+        // 다음에 생성될 블록을 표시하는 영역을 추가한다.
+        sections.add(nextPieceSection());
         sections.add(sectionDivider());
         sections.add(controlSection());
         sections.add(Box.createVerticalGlue());
@@ -62,15 +80,35 @@ public class GameScreen extends JPanel {
         return summary;
     }
 
-    private JPanel informationSection(String heading, String value, String detail) {
+    private JPanel informationSection(String heading, JLabel valueLabel, String detail) {
         JPanel section = ScreenSupport.transparentPanel(new BorderLayout(0, 8));
         section.setAlignmentX(Component.LEFT_ALIGNMENT);
         section.setMaximumSize(new Dimension(Integer.MAX_VALUE, 116));
+
         section.add(ScreenSupport.sectionTitle(heading), BorderLayout.NORTH);
-        JLabel valueLabel = new JLabel(value);
+
         valueLabel.setFont(AppTheme.font(Font.BOLD, 21f));
         section.add(valueLabel, BorderLayout.CENTER);
+
         section.add(ScreenSupport.mutedLabel(detail), BorderLayout.SOUTH);
+
+        return section;
+    }
+
+    // 다음 블록 표시 영역을 구성한다.
+    private JPanel nextPieceSection() {
+        JPanel section = ScreenSupport.transparentPanel(new BorderLayout(0, 8));
+        section.setAlignmentX(Component.LEFT_ALIGNMENT);
+        section.setMaximumSize(new Dimension(Integer.MAX_VALUE, 116));
+
+        section.add(ScreenSupport.sectionTitle("다음 블록"), BorderLayout.NORTH);
+
+        //nextPieceLabel.setFont(AppTheme.font(Font.BOLD, 21f));
+        // section.add(nextPieceLabel, BorderLayout.CENTER);
+        nextPiecePanel.setOpaque(false);
+        section.add(nextPiecePanel, BorderLayout.CENTER);
+        section.add(ScreenSupport.mutedLabel("게임 상태 연결 후 표시"), BorderLayout.SOUTH);
+
         return section;
     }
 
@@ -103,6 +141,35 @@ public class GameScreen extends JPanel {
 
     public void render(GameState state) {
         // TODO: GameState의 보드 사본, 현재 블록, 기준 행·열과 다음 블록 목록을 표시한다.
-        throw new UnsupportedOperationException("TODO: 게임 상태를 화면에 표시");
+        // throw new UnsupportedOperationException("TODO: 게임 상태를 화면에 표시");
+
+        if (state == null) {
+            return;
+        }
+        boardPreview.render(state);
+
+        // 현재 점수와 레벨을 표시한다.
+        scoreLabel.setText(String.valueOf(state.score()));
+        levelLabel.setText(String.valueOf(state.level()));
+
+        // 다음에 생성될 블록을 표시한다.
+        nextPiecePanel.removeAll();
+
+        if (!state.nextPieces().isEmpty()) {
+            nextPiecePanel.add(
+                    new TetrominoMark(state.nextPieces().get(0)),
+                    BorderLayout.CENTER);
+        }
+
+        nextPiecePanel.revalidate();
+        nextPiecePanel.repaint();
+
+        // 일시정지 상태를 표시한다.
+        if (state.phase() == GamePhase.PAUSED) {
+            pauseLabel.setText("일시정지");
+        } else {
+            pauseLabel.setText("");
+        }
+
     }
 }
