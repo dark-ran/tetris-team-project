@@ -67,4 +67,9 @@ public class ScoreboardScreen extends JPanel {
         }
         SwingKeyBindings.focus(backButton);
     }
+
+    public void showScreen(List<ScoreEntry> entries, ScoreEntry highlighted) {
+        // TODO: highlighted 기록을 강조한다. null이면 강조하지 않는다.
+        showScreen(entries);
+    }
 }
