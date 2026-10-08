@@ -1,11 +1,8 @@
 package tetris.settings;
 
 import java.awt.Dimension;
-import java.util.HashSet;
 import java.util.List;
-import java.util.Map;
 import java.util.Objects;
-import java.util.Set;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.function.Consumer;
 
@@ -35,8 +32,8 @@ public class SettingsService {
         Objects.requireNonNull(settings, "settings must not be null");
         validate(settings);
 
-        this.currentSettings = settings;
         this.repository.save(settings);
+        this.currentSettings = settings;
         notifyListeners(settings);
     }
 
@@ -131,14 +128,6 @@ public class SettingsService {
             throw new IllegalArgumentException("Invalid window size preset: " + settings.windowSizePreset());
         }
 
-        Set<Integer> assignedKeys = new HashSet<>();
-        for (Map.Entry<String, Integer> entry : settings.keyBindings().entrySet()) {
-            Integer keyCode = entry.getValue();
-            if (keyCode != null && !assignedKeys.add(keyCode)) {
-                throw new IllegalArgumentException(
-                        "Duplicate key assignment detected for key code " + keyCode
-                                + " on action " + entry.getKey());
-            }
-        }
+        GameSettings.normalizeKeyBindings(settings.keyBindings());
     }
 }

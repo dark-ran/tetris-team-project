@@ -34,7 +34,6 @@ public final class GameSettings {
         defaults.put(GameAction.DOWN.name(), KeyEvent.VK_DOWN);
         defaults.put(GameAction.ROTATE_CLOCKWISE.name(), KeyEvent.VK_UP);
         defaults.put(GameAction.HARD_DROP.name(), KeyEvent.VK_SPACE);
-        defaults.put(GameAction.TOGGLE_PAUSE.name(), KeyEvent.VK_P);
         defaults.put(GameAction.QUIT.name(), KeyEvent.VK_Q);
         DEFAULT_KEY_BINDINGS = Collections.unmodifiableMap(defaults);
     }
@@ -66,7 +65,28 @@ public final class GameSettings {
 
         this.windowSizePreset = windowSizePreset;
         this.colorBlindMode = colorBlindMode;
-        this.keyBindings = Collections.unmodifiableMap(new LinkedHashMap<>(keyBindings));
+        this.keyBindings = normalizeKeyBindings(keyBindings);
+    }
+
+    /** Completes partial bindings before validating; Esc always opens the game menu. */
+    public static Map<String, Integer> normalizeKeyBindings(Map<String, Integer> bindings) {
+        Objects.requireNonNull(bindings, "keyBindings must not be null");
+        Map<String, Integer> complete = new LinkedHashMap<>(DEFAULT_KEY_BINDINGS);
+        for (Map.Entry<String, Integer> entry : bindings.entrySet()) {
+            if (!DEFAULT_KEY_BINDINGS.containsKey(entry.getKey())) {
+                throw new IllegalArgumentException("Unsupported configurable action: " + entry.getKey());
+            }
+            Integer code = entry.getValue();
+            if (code == null || code <= KeyEvent.VK_UNDEFINED || code == KeyEvent.VK_ESCAPE) {
+                throw new IllegalArgumentException("Invalid or reserved key code for " + entry.getKey());
+            }
+            complete.put(entry.getKey(), code);
+        }
+        java.util.Set<Integer> assigned = new java.util.HashSet<>();
+        for (Integer code : complete.values()) {
+            if (!assigned.add(code)) throw new IllegalArgumentException("Duplicate key assignment detected for key code " + code);
+        }
+        return Collections.unmodifiableMap(complete);
     }
 
     /**

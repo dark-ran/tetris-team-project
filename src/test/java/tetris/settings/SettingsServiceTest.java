@@ -54,10 +54,8 @@ class SettingsServiceTest {
         duplicateKeys.put(GameAction.LEFT.name(), KeyEvent.VK_LEFT);
         duplicateKeys.put(GameAction.RIGHT.name(), KeyEvent.VK_LEFT);
 
-        GameSettings invalidSettings = service.current().withKeyBindings(duplicateKeys);
-
         IllegalArgumentException ex = assertThrows(IllegalArgumentException.class, () ->
-                service.update(invalidSettings));
+                service.update(service.current().withKeyBindings(duplicateKeys)));
         assertTrue(ex.getMessage().contains("Duplicate key assignment detected"));
     }
 

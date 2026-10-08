@@ -28,7 +28,7 @@ class GameSettingsTest {
         assertEquals(KeyEvent.VK_DOWN, keys.get(GameAction.DOWN.name()));
         assertEquals(KeyEvent.VK_UP, keys.get(GameAction.ROTATE_CLOCKWISE.name()));
         assertEquals(KeyEvent.VK_SPACE, keys.get(GameAction.HARD_DROP.name()));
-        assertEquals(KeyEvent.VK_P, keys.get(GameAction.TOGGLE_PAUSE.name()));
+        assertFalse(keys.containsKey(GameAction.TOGGLE_PAUSE.name()));
         assertEquals(KeyEvent.VK_Q, keys.get(GameAction.QUIT.name()));
     }
 

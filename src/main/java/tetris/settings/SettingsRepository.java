@@ -3,6 +3,8 @@ package tetris.settings;
 import java.io.BufferedReader;
 import java.io.BufferedWriter;
 import java.io.IOException;
+import java.io.UncheckedIOException;
+import java.nio.file.StandardCopyOption;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -63,17 +65,27 @@ public class SettingsRepository {
             properties.setProperty("key." + entry.getKey(), String.valueOf(entry.getValue()));
         }
 
+        Path temporary = null;
         try {
-            Path parent = filePath.getParent();
-            if (parent != null && !Files.exists(parent)) {
-                Files.createDirectories(parent);
-            }
-            try (BufferedWriter writer = Files.newBufferedWriter(filePath)) {
+            Path target = filePath.toAbsolutePath();
+            Files.createDirectories(target.getParent());
+            temporary = Files.createTempFile(target.getParent(), "settings-", ".tmp");
+            try (BufferedWriter writer = Files.newBufferedWriter(temporary)) {
                 properties.store(writer, "Tetris User Settings");
             }
+            replaceAtomically(temporary, target);
         } catch (IOException e) {
-            System.err.println("Warning: Failed to save settings to " + filePath + ": " + e.getMessage());
+            throw new UncheckedIOException("설정을 저장하지 못했습니다: " + filePath, e);
+        } finally {
+            if (temporary != null) {
+                try { Files.deleteIfExists(temporary); } catch (IOException ignored) { }
+            }
         }
+    }
+
+    /** Kept separate so failed replacements can be tested without changing OS permissions. */
+    protected void replaceAtomically(Path temporary, Path target) throws IOException {
+        Files.move(temporary, target, StandardCopyOption.ATOMIC_MOVE, StandardCopyOption.REPLACE_EXISTING);
     }
 
     private GameSettings parseSettings(Properties properties) {
