@@ -65,8 +65,8 @@ jobs:
           retention-days: 14
           if-no-files-found: warn
 
-  coverage-comment:
-    name: Update PR coverage comment
+  coverage-report:
+    name: Update PR body coverage report
     needs: test
     if: >-
       ${{ !cancelled() && github.event_name == 'pull_request' &&
@@ -85,34 +85,44 @@ jobs:
           name: test-reports-ubuntu-latest
           path: reports
 
-      - name: Create or update coverage comment
+      - name: Update coverage section in PR body
         uses: actions/github-script@v9
         env:
           TEST_JOB_RESULT: ${{ needs.test.result }}
         with:
           script: |
             const fs = require('node:fs');
-            const marker = '<!-- tetris-jacoco-coverage -->';
+            const startMarker = '<!-- tetris-jacoco-coverage:start -->';
+            const endMarker = '<!-- tetris-jacoco-coverage:end -->';
             const summary = fs.readFileSync('reports/reports/jacoco/test/coverage-summary.md', 'utf8');
             const runUrl = `${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`;
-            const body = `${marker}\n# JaCoCo Coverage Report\n\n` +
+            const report = `${startMarker}\n## CI 검증 결과\n\n` +
               `Commit: \`${context.payload.pull_request.head.sha}\`\n\n` +
               `Environment: ubuntu-latest · CI result: ${process.env.TEST_JOB_RESULT}\n\n` +
-              `${summary}\n[Actions results for all environments](${runUrl})`;
-            const comments = await github.paginate(github.rest.issues.listComments, {
+              `${summary}\n[Actions results for all environments](${runUrl})\n${endMarker}`;
+            const { data: pullRequest } = await github.rest.pulls.get({
               ...context.repo,
-              issue_number: context.issue.number,
-              per_page: 100
+              pull_number: context.issue.number
             });
-            const existing = comments.find(comment =>
-              comment.user?.login === 'github-actions[bot]' && comment.body?.startsWith(marker)
-            );
-            if (existing) {
-              await github.rest.issues.updateComment({
-                ...context.repo, comment_id: existing.id, body
-              });
-            } else {
-              await github.rest.issues.createComment({
-                ...context.repo, issue_number: context.issue.number, body
-              });
+            if (pullRequest.head.sha !== context.payload.pull_request.head.sha || pullRequest.state !== 'open') {
+              core.info('Skipping report for an outdated commit or closed PR.');
+              return;
             }
+            const currentBody = pullRequest.body ?? '';
+            const start = currentBody.indexOf(startMarker);
+            const end = currentBody.indexOf(endMarker);
+            let body;
+            if (start === -1 && end === -1) {
+              core.info('Coverage section is absent. Leaving the PR body unchanged.');
+              return;
+            } else if (start !== -1 && end > start &&
+                       currentBody.indexOf(startMarker, start + startMarker.length) === -1 &&
+                       currentBody.indexOf(endMarker, end + endMarker.length) === -1) {
+              body = currentBody.slice(0, start) + report + currentBody.slice(end + endMarker.length);
+            } else {
+              core.setFailed('Coverage section markers are incomplete or duplicated. Restore both markers before retrying.');
+              return;
+            }
+            await github.rest.pulls.update({
+              ...context.repo, pull_number: context.issue.number, body
+            });
