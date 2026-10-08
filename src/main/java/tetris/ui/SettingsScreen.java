@@ -23,6 +23,14 @@ import tetris.settings.GameSettings;
  * <p>후속 연결: SettingsService를 통한 크기·키·색각이상 설정과 저장·복원·초기화.</p>
  */
 public class SettingsScreen extends JPanel {
+    public record Values(int preset, boolean colorBlind, java.util.Map<String, Integer> keys) {
+        public Values { keys = java.util.Map.copyOf(keys); }
+    }
+    private Consumer<Values> onSaveValues;
+    public void setOnSaveValues(Consumer<Values> callback) { onSaveValues = Objects.requireNonNull(callback); }
+    /** Editor rendering is implemented in PR #8. */
+    public void showSettings(GameSettings settings) { Objects.requireNonNull(settings); }
+
     private static final List<SettingItem> SETTINGS = List.of(
             new SettingItem("화면 크기", "3개 이상 프리셋 연결 예정", AppTheme.CYAN),
             new SettingItem("게임 조작 키", "키 변경·중복 정책 결정 예정", AppTheme.YELLOW),
@@ -43,7 +51,7 @@ public class SettingsScreen extends JPanel {
     public SettingsScreen(Runnable onBack) {
         ScreenSupport.prepareScreen(this, "설정",
                 "설정 항목의 위치를 확인하는 임시 화면입니다. 비활성 항목은 후속 작업에서 연결합니다.");
-        backButton = ScreenSupport.button("시작 메뉴", onBack);
+        backButton = ScreenSupport.button("돌아가기", onBack);
 
         JPanel center = ScreenSupport.transparentPanel(new GridBagLayout());
         center.add(settingsFrame());
@@ -130,7 +138,7 @@ public class SettingsScreen extends JPanel {
     }
 
     private static JButton disabledSaveButton() {
-        JButton saveButton = ScreenSupport.button("설정 저장 (준비 중)", () -> {});
+        JButton saveButton = ScreenSupport.button("설정 저장", () -> {});
         saveButton.setEnabled(false);
         return saveButton;
     }

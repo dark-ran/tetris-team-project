@@ -23,6 +23,16 @@ import tetris.settings.GameSettings;
 public class GameScreen extends JPanel {
     private final BoardPreview boardPreview = new BoardPreview();
     private InputHandler inputHandler;
+    private final JPanel menuPanel = new JPanel(new java.awt.GridLayout(4, 1, 0, 8));
+    private Runnable resumeAction = () -> {}, settingsAction = () -> {}, startMenuAction = () -> {}, exitAction = () -> {};
+    public void setMenuActions(Runnable resume, Runnable settings, Runnable startMenu, Runnable exit) {
+        resumeAction = Objects.requireNonNull(resume); settingsAction = Objects.requireNonNull(settings);
+        startMenuAction = Objects.requireNonNull(startMenu); exitAction = Objects.requireNonNull(exit);
+    }
+    /** The blurred presentation of this menu is supplied by PR #8. */
+    public void showMenu() { menuPanel.setVisible(true); }
+    public void hideMenu() { menuPanel.setVisible(false); }
+
 
     public void setInputHandler(InputHandler inputHandler) {
         this.inputHandler = Objects.requireNonNull(inputHandler);
@@ -36,17 +46,23 @@ public class GameScreen extends JPanel {
     public GameScreen(Runnable onFinishPreview, Runnable onBack, Runnable onExit) {
         ScreenSupport.prepareScreen(this, "게임",
                 "게임을 준비하고 있습니다.");
-        JButton finishButton = ScreenSupport.primaryButton("종료 화면 보기", onFinishPreview);
+        JButton menuButton = ScreenSupport.primaryButton("게임 메뉴 (Esc)", onFinishPreview);
+        menuPanel.add(ScreenSupport.primaryButton("게임으로 돌아가기", () -> resumeAction.run()));
+        menuPanel.add(ScreenSupport.button("설정", () -> settingsAction.run()));
+        menuPanel.add(ScreenSupport.button("시작 메뉴로 이동", () -> startMenuAction.run()));
+        menuPanel.add(ScreenSupport.dangerButton("프로그램 종료", () -> exitAction.run()));
+        menuPanel.setVisible(false);
 
         JPanel center = ScreenSupport.transparentPanel(new BorderLayout(28, 0));
         center.add(boardFrame(), BorderLayout.CENTER);
         center.add(statusSidebar(), BorderLayout.EAST);
         add(center, BorderLayout.CENTER);
-        add(ScreenSupport.actionRow(finishButton,
-                ScreenSupport.button("시작 메뉴", onBack),
-                ScreenSupport.dangerButton("프로그램 종료", onExit)), BorderLayout.SOUTH);
+        JPanel footer = ScreenSupport.transparentPanel(new BorderLayout());
+        footer.add(menuPanel, BorderLayout.CENTER);
+        footer.add(ScreenSupport.actionRow(menuButton), BorderLayout.SOUTH);
+        add(footer, BorderLayout.SOUTH);
 
-        SwingKeyBindings.backOnEscape(this, onBack);
+        SwingKeyBindings.backOnEscape(this, () -> { if (menuPanel.isVisible()) resumeAction.run(); else onFinishPreview.run(); });
     }
 
     private JPanel boardFrame() {

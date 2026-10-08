@@ -63,6 +63,7 @@ public class AppController {
     private ScoreEntry lastRegisteredScore;
     private GameSettings settings;
     private String persistenceError;
+    private boolean settingsFromGame;
 
     public AppController(Runnable onExit) {
         this(onExit, new GameEngine(), null, null, null, new ScoreBoardService(), new SettingsService(), null);
@@ -89,9 +90,9 @@ public class AppController {
         startMenu = register(AppState.START_MENU,
                 new StartMenu(this::startGame, this::showSettings, this::showScoreboard, this::exit));
         gameScreen = register(AppState.GAME,
-                new GameScreen(this::showGameOver, this::showStartMenu, this::exit));
+                new GameScreen(this::showGameMenu, this::showStartMenu, this::exit));
 
-        settingsScreen = register(AppState.SETTINGS, new SettingsScreen(this::showStartMenu));
+        settingsScreen = register(AppState.SETTINGS, new SettingsScreen(this::closeSettings));
         scoreboardScreen = register(AppState.SCOREBOARD, new ScoreboardScreen(this::showStartMenu));
 
         gameOverScreen = register(AppState.GAME_OVER,
@@ -99,8 +100,12 @@ public class AppController {
         inputHandler.setActionListener(this::handleAction);
         this.loop.setTickListener(() -> handleAction(GameAction.TICK));
         gameScreen.setInputHandler(inputHandler);
-        settingsScreen.setOnSave(this::updateSettings);
-        settingsScreen.setOnRestoreDefaults(this::restoreDefaultSettings);
+        gameScreen.setMenuActions(this::resumeGame, this::showSettings, this::showStartMenu, this::exit);
+        if (settingsService != null) {
+            settingsScreen.setOnSaveValues(values -> updateSettings(
+                    new GameSettings(values.preset(), values.colorBlind(), values.keys())));
+            settingsScreen.setOnRestoreDefaults(this::restoreDefaultSettings);
+        }
         settingsScreen.setOnResetScores(this::resetScores);
         gameOverScreen.setOnRegister(this::registerScore);
         gameOverScreen.setOnSkip(this::skipScoreRegistration);
@@ -125,13 +130,18 @@ public class AppController {
         if (settingsService != null) applyCurrentSettings();
         showStartMenu();
     }
-    public void showStartMenu() { activate(AppState.START_MENU, startMenu::showScreen); }
+    public void showStartMenu() {
+        settingsFromGame = false;
+        activate(AppState.START_MENU, startMenu::showScreen);
+    }
     /** 메뉴 복귀 전의 게임을 이어 하지 않고 점수·진행·랭킹 입력 대기를 초기화한다. */
     public void startGame() {
         requireEdt();
         if (state == AppState.EXIT) return;
         if (!resolvePendingScore()) return;
         loop.stop();
+        gameScreen.hideMenu();
+        settingsFromGame = false;
         engine.newGame();
         gameOverHandled = false;
         awaitingScoreName = false;
@@ -143,7 +153,34 @@ public class AppController {
         if (engine.isGameOver()) finishGame();
         else loop.start();
     }
-    public void showSettings() { activate(AppState.SETTINGS, settingsScreen::showScreen); }
+    public void showSettings() {
+        requireEdt();
+        if (state == AppState.EXIT) return;
+        if (state == AppState.GAME) showGameMenu();
+        settingsFromGame = state == AppState.GAME_MENU;
+        activate(AppState.SETTINGS, settingsScreen::showScreen);
+    }
+    public void closeSettings() {
+        requireEdt();
+        if (state != AppState.SETTINGS) return;
+        if (settingsFromGame) {
+            state = AppState.GAME_MENU;
+            layout.show(view, AppState.GAME.name());
+            gameScreen.showMenu();
+        } else showStartMenu();
+    }
+    public void showGameMenu() {
+        requireEdt();
+        if (state != AppState.GAME && state != AppState.GAME_MENU) return;
+        if (state == AppState.GAME) {
+            pauseEngine();
+            loop.pause();
+            renderer.accept(engine.state());
+        }
+        state = AppState.GAME_MENU;
+        layout.show(view, AppState.GAME.name());
+        gameScreen.showMenu();
+    }
     public void showScoreboard() {
 
         activate(AppState.SCOREBOARD, () -> scoreboardScreen.showScreen(scores.top(), lastRegisteredScore));
@@ -162,6 +199,7 @@ public class AppController {
         Objects.requireNonNull(action);
         if (state == AppState.EXIT) return;
         if (action == GameAction.QUIT) { exit(); return; }
+        if (action == GameAction.TOGGLE_PAUSE) { if (state == AppState.GAME) showGameMenu(); else if (state == AppState.GAME_MENU) resumeGame(); return; }
         if (state != AppState.GAME) return;
         GameState before = engine.state();
         GameActionResult result = engine.apply(action);
@@ -175,15 +213,16 @@ public class AppController {
         renderer.accept(engine.state());
         if (result.becameGameOver()) finishGame();
     }
-    public void pauseGame() {
-        requireEdt();
-        if (state == AppState.GAME && engine.state().phase() == GamePhase.RUNNING)
-            handleAction(GameAction.TOGGLE_PAUSE);
-    }
+    public void pauseGame() { showGameMenu(); }
     public void resumeGame() {
         requireEdt();
-        if (state == AppState.GAME && engine.state().phase() == GamePhase.PAUSED)
-            handleAction(GameAction.TOGGLE_PAUSE);
+        if (state != AppState.GAME_MENU || engine.state().phase() != GamePhase.PAUSED) return;
+        engine.apply(GameAction.TOGGLE_PAUSE);
+        state = AppState.GAME;
+        gameScreen.hideMenu();
+        layout.show(view, AppState.GAME.name());
+        renderer.accept(engine.state());
+        loop.resume();
     }
     /** 점수는 앱이 계산하고, 누적 생성·삭제 수와 실제 게임 상태는 엔진이 관리한다. */
     private void updateProgress(long score) {
@@ -234,6 +273,7 @@ public class AppController {
             return true;
         } catch (UncheckedIOException ex) {
             persistenceError = ex.getMessage();
+            gameOverScreen.showSaveError(persistenceError);
             return false;
         }
     }
@@ -288,6 +328,8 @@ public class AppController {
     private void applySettingsToModules(GameSettings next) {
         keyMapper.updateBindings(next.keyBindings());
         gameScreen.applySettings(next);
+        settingsScreen.showSettings(next);
+        gameScreen.render(engine.state());
         Window window = SwingUtilities.getWindowAncestor(view);
         if (window != null) window.setSize(next.windowDimension());
         else view.setPreferredSize(next.windowDimension());
@@ -314,7 +356,7 @@ public class AppController {
     private void activate(AppState next, Runnable onShow) {
         requireEdt();
         if (state == AppState.EXIT) return;
-        if (next != AppState.GAME) {
+        if (next != AppState.GAME && !(next == AppState.SETTINGS && settingsFromGame)) {
             loop.stop();
             pauseEngine();
         }

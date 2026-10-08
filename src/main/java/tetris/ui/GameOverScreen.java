@@ -33,6 +33,8 @@ public class GameOverScreen extends JPanel {
     public void setOnRetrySave(BooleanSupplier callback) { onRetrySave = Objects.requireNonNull(callback); }
     public void setSaveErrorSupplier(Supplier<String> supplier) { saveError = Objects.requireNonNull(supplier); }
 
+    public void showSaveError(String error) { /* PR #8 renders the error supplier. */ }
+
     // TODO: UI에서 위 콜백을 호출하고 입력 예외·저장 오류를 표시한다.
     public void showScreen(long score, boolean canRegister) {
         showScreen(score);
@@ -49,7 +51,7 @@ public class GameOverScreen extends JPanel {
         scoreLabel.setFont(AppTheme.font(Font.BOLD, 24f));
         scoreLabel.setHorizontalAlignment(JLabel.CENTER);
         result.add(scoreLabel);
-        JLabel guide = ScreenSupport.mutedLabel("Esc  시작 메뉴");
+        JLabel guide = ScreenSupport.mutedLabel("Space  다시 시작     ·     Esc  시작 메뉴");
         guide.setHorizontalAlignment(JLabel.CENTER);
         result.add(guide);
         JPanel center = ScreenSupport.transparentPanel(new GridBagLayout());
@@ -60,6 +62,7 @@ public class GameOverScreen extends JPanel {
                 ScreenSupport.button("시작 메뉴", onBack),
                 ScreenSupport.dangerButton("프로그램 종료", onExit)), BorderLayout.SOUTH);
         SwingKeyBindings.backOnEscape(this, onBack);
+        SwingKeyBindings.bindToScreen(this, java.awt.event.KeyEvent.VK_SPACE, "restart-game", onRestart);
     }
 
     /** 게임 미연결 상태의 미리보기. 실제 점수 대신 미측정을 표시한다. */

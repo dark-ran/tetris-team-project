@@ -101,3 +101,33 @@ def gameEngineCoverageVerification = tasks.register(
 }
 
 check.dependsOn gameEngineCoverageVerification
+
+// Run after combining the settings, Swing UI and app-control branches.
+sourceSets {
+    reviewIntegration {
+        compileClasspath += sourceSets.main.output
+        runtimeClasspath += sourceSets.main.output
+    }
+}
+configurations {
+    reviewIntegrationImplementation.extendsFrom testImplementation
+    reviewIntegrationRuntimeOnly.extendsFrom testRuntimeOnly
+}
+tasks.register('reviewIntegrationTest', Test) {
+    description = 'Verifies the combined PR #7, #8 and #11 menu, settings and restart flow.'
+    group = 'verification'
+    testClassesDirs = sourceSets.reviewIntegration.output.classesDirs
+    classpath = sourceSets.reviewIntegration.runtimeClasspath
+    useJUnitPlatform()
+    systemProperty 'java.awt.headless', 'true'
+}
+tasks.register('reviewWindowTest', Test) {
+    description = 'Checks real window focus and keyboard input after combining the three PRs.'
+    group = 'verification'
+    testClassesDirs = sourceSets.reviewIntegration.output.classesDirs
+    classpath = sourceSets.reviewIntegration.runtimeClasspath
+    useJUnitPlatform()
+    include '**/ReviewWindowTest.class'
+    systemProperty 'java.awt.headless', 'false'
+}
+tasks.named('reviewIntegrationTest') { exclude '**/ReviewWindowTest.class' }

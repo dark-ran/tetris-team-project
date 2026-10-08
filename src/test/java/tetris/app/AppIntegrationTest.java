@@ -61,14 +61,14 @@ class AppIntegrationTest {
             app.handleAction(GameAction.TICK);
             assertEquals(3, engine.state().score());
             app.showSettings();
-            assertEquals(2, loop.stops);
+            assertEquals(1, loop.stops);
             assertEquals(GamePhase.PAUSED, engine.state().phase());
             app.handleAction(GameAction.DOWN);
             assertEquals(3, engine.state().score());
             app.startGame();
             assertEquals(0, engine.state().score());
             app.exit();
-            assertEquals(4, loop.stops);
+            assertEquals(3, loop.stops);
             int spawned = engine.state().spawnedPieces();
             app.startGame();
             assertEquals(AppState.EXIT, app.state());

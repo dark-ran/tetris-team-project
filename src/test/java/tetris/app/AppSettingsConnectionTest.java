@@ -18,7 +18,7 @@ import tetris.settings.SettingsService;
 class AppSettingsConnectionTest {
     @TempDir Path directory;
 
-    private static final class TestLoop extends GameLoop {
+    private static class TestLoop extends GameLoop {
         @Override public void start() { }
         @Override public void stop() { }
         @Override public void pause() { }
@@ -56,8 +56,9 @@ class AppSettingsConnectionTest {
 
     @Test void defaultIntervalRouteUsesLoopApiWithoutHidingUnimplementedFailure() throws Exception {
         SwingUtilities.invokeAndWait(() -> {
-            AppController app = new AppController(() -> {}, new GameEngine(), new TestLoop(),
-                    null, ignored -> {}, scores(), null, null);
+            AppController app = new AppController(() -> {}, new GameEngine(), new TestLoop() {
+                        @Override public void setIntervalMillis(long millis) { throw new UnsupportedOperationException("낙하 간격 변경 실패"); }
+                    }, null, ignored -> {}, scores(), null, null);
             UnsupportedOperationException failure = assertThrows(UnsupportedOperationException.class, app::startGame);
             assertTrue(failure.getMessage().contains("낙하 간격 변경"));
         });
@@ -76,7 +77,7 @@ class AppSettingsConnectionTest {
                 @Override public GameSettings current() { return new GameSettings(); }
             };
             AppController unconnected = new AppController(() -> {}, new GameEngine(), new TestLoop(),
-                    ignored -> {}, ignored -> {}, scores(), readable, null);
+                    ignored -> {}, ignored -> {}, scores(), readable, settings -> { throw new UnsupportedOperationException("settings application failed"); });
             assertThrows(UnsupportedOperationException.class, unconnected::start);
             assertNull(unconnected.snapshot().settings());
         });

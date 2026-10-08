@@ -51,7 +51,7 @@ class AppControllerTest {
             assertScreen(app, AppState.START_MENU);
             click(app, "게임 시작");
             assertScreen(app, AppState.GAME);
-            click(app, "종료 화면 보기");
+            app.showGameOver();
             assertScreen(app, AppState.GAME_OVER);
             assertLabel(app, "최종 점수: 미측정 (게임 연결 전)");
             click(app, "다시 시작");
@@ -69,8 +69,8 @@ class AppControllerTest {
             for (int visit = 0; visit < 2; visit++) {
                 click(app, "설정");
                 assertScreen(app, AppState.SETTINGS);
-                assertFalse(button(app, "설정 저장 (준비 중)").isEnabled());
-                click(app, "시작 메뉴");
+                assertFalse(button(app, "설정 저장").isEnabled());
+                click(app, "돌아가기");
                 click(app, "스코어보드");
                 assertScreen(app, AppState.SCOREBOARD);
                 JTable table = visibleTree(app.view()).filter(JTable.class::isInstance)
@@ -101,7 +101,7 @@ class AppControllerTest {
             JComponent activeCard = Arrays.stream(app.view().getComponents())
                     .filter(Component::isVisible).map(JComponent.class::cast).findFirst().orElseThrow();
             invokeKey(activeCard, JComponent.WHEN_ANCESTOR_OF_FOCUSED_COMPONENT, KeyEvent.VK_ESCAPE);
-            assertScreen(app, AppState.START_MENU);
+            assertScreen(app, screen == AppState.GAME ? AppState.GAME_MENU : AppState.START_MENU);
         });
     }
 
@@ -141,7 +141,7 @@ class AppControllerTest {
             app.showGameOver(6_000_000_000L);
             assertLabel(app, "최종 점수: 6000000000");
             click(app, "다시 시작");
-            click(app, "종료 화면 보기");
+            app.showGameOver();
             assertLabel(app, "최종 점수: 미측정 (게임 연결 전)");
         });
     }
@@ -151,6 +151,7 @@ class AppControllerTest {
         switch (screen) {
             case START_MENU -> { }
             case GAME -> app.startGame();
+            case GAME_MENU -> { app.startGame(); app.showGameMenu(); }
             case SETTINGS -> app.showSettings();
             case SCOREBOARD -> app.showScoreboard();
             case GAME_OVER -> app.showGameOver();
@@ -166,6 +167,10 @@ class AppControllerTest {
     }
 
     private static void click(AppController app, String text) {
+        if (app.state() == AppState.GAME && (text.equals("프로그램 종료") || text.equals("시작 메뉴"))) {
+            app.showGameMenu();
+            if (text.equals("시작 메뉴")) text = "시작 메뉴로 이동";
+        }
         JButton button = button(app, text);
         assertTrue(button.isEnabled());
         button.doClick(0);
