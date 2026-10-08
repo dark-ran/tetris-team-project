@@ -43,10 +43,20 @@ class ColorVisionRenderingTest {
                 GameScreen screen = new GameScreen(() -> {}, () -> {}, () -> {});
                 screen.render(state);
                 screen.applySettings(new GameSettings(1, mode, true, GameSettings.DEFAULT_KEY_BINDINGS));
-                TetrominoMark next = GameMenuUiTest.tree(screen).filter(TetrominoMark.class::isInstance)
-                        .map(TetrominoMark.class::cast).toList().getLast();
+                NextPiecePreview next = GameScreenStateTest.preview(screen);
                 next.setSize(next.getPreferredSize());
-                assertArrayEquals(pixels(tile), pixels(GameMenuUiTest.paint(next)));
+                BufferedImage enlarged = GameMenuUiTest.paint(next);
+                int[][] shape = new Tetromino(type).cells();
+                int left = Arrays.stream(shape).mapToInt(cell -> cell[1]).min().orElseThrow();
+                int columns = Arrays.stream(shape).mapToInt(cell -> cell[1]).max().orElseThrow() - left + 1;
+                int rows = Arrays.stream(shape).mapToInt(cell -> cell[0]).max().orElseThrow() - top + 1;
+                BufferedImage largeTile = new BufferedImage(32, 32, BufferedImage.TYPE_INT_RGB);
+                Graphics2D g = largeTile.createGraphics();
+                try { PieceStyle.paintCell(g, type, 0, 0, 32, mode, true); } finally { g.dispose(); }
+                int originX = (enlarged.getWidth() - columns * 32) / 2;
+                int originY = (enlarged.getHeight() - rows * 32) / 2;
+                for (int[] cell : shape) assertArrayEquals(pixels(largeTile), enlarged.getRGB(
+                        originX + (cell[1] - left) * 32, originY + (cell[0] - top) * 32, 32, 32, null, 0, 32));
             }
         });
     }
