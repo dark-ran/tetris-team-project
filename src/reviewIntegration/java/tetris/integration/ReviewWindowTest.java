@@ -66,6 +66,20 @@ class ReviewWindowTest {
                 assertEquals(AppState.GAME_OVER, app.state());
             });
             focus(window, () -> nameField(app));
+            SwingUtilities.invokeAndWait(() -> {
+                window.validate();
+                JTextField name = nameField(app);
+                assertTrue(name.getHeight() <= name.getFontMetrics(name.getFont()).getHeight() * 2);
+                assertTrue(name.getFont().getSize() >= 18);
+                name.setText("플레이어 1");
+                try {
+                    BufferedImage image = new BufferedImage(window.getWidth(), window.getHeight(), BufferedImage.TYPE_INT_RGB);
+                    Graphics2D graphics = image.createGraphics();
+                    try { window.paint(graphics); } finally { graphics.dispose(); }
+                    ImageIO.write(image, "png", Path.of("build", "review-game-over-registration.png").toFile());
+                } catch (java.io.IOException ex) { throw new java.io.UncheckedIOException(ex); }
+                name.setText("");
+            });
             press(KeyEvent.VK_A, 'a'); press(KeyEvent.VK_SPACE, ' '); press(KeyEvent.VK_B, 'b');
             SwingUtilities.invokeAndWait(() -> {
                 assertEquals(AppState.GAME_OVER, app.state(), "A space in the name editor must not restart");
