@@ -122,7 +122,7 @@ tasks.register('reviewIntegrationTest', Test) {
     systemProperty 'java.awt.headless', 'true'
 }
 tasks.register('reviewWindowTest', Test) {
-    description = 'Checks real window focus and keyboard input after combining the three PRs.'
+    description = 'Checks real window focus and Swing key event handling after combining the three PRs.'
     group = 'verification'
     testClassesDirs = sourceSets.reviewIntegration.output.classesDirs
     classpath = sourceSets.reviewIntegration.runtimeClasspath

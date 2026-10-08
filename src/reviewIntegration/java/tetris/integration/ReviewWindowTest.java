@@ -19,10 +19,11 @@ import tetris.loop.GameLoop;
 import tetris.scoreboard.*;
 import tetris.settings.*;
 
-/** Checks real keyboard focus, including Space in the name editor and on menu buttons. */
+/** Sends Swing key events through the actual focus owner; does not inject OS input. */
 class ReviewWindowTest {
     @TempDir Path directory;
-    @Test void realWindowEscapeSettingsReturnAndSpaceRestartUseTheCorrectContext() throws Exception {
+
+    @Test void windowFocusEscapeSettingsReturnAndSpaceRestartUseTheCorrectContext() throws Exception {
         AtomicReference<JFrame> windowRef = new AtomicReference<>();
         AtomicReference<AppController> appRef = new AtomicReference<>();
         SwingUtilities.invokeAndWait(() -> {
@@ -40,9 +41,10 @@ class ReviewWindowTest {
             window.setLocationRelativeTo(null); window.setVisible(true); app.start(); app.startGame();
         });
         JFrame window = windowRef.get(); AppController app = appRef.get();
-        Robot robot = new Robot(); robot.setAutoDelay(70); robot.waitForIdle();
         try {
-            press(robot, KeyEvent.VK_ESCAPE);
+            focus(window, () -> visible(app.view()).filter(component ->
+                    component.getClass().getSimpleName().equals("BoardPreview")).findFirst().orElseThrow());
+            press(KeyEvent.VK_ESCAPE, KeyEvent.CHAR_UNDEFINED);
             SwingUtilities.invokeAndWait(() -> {
                 assertEquals(AppState.GAME_MENU, app.state());
                 assertEquals(GamePhase.PAUSED, app.snapshot().game().phase());
@@ -55,26 +57,22 @@ class ReviewWindowTest {
                 button(app, "설정").doClick(0);
                 assertEquals(AppState.SETTINGS, app.state());
             });
-            robot.waitForIdle(); press(robot, KeyEvent.VK_ESCAPE);
+            focus(window, () -> button(app, "돌아가기"));
+            press(KeyEvent.VK_ESCAPE, KeyEvent.CHAR_UNDEFINED);
             SwingUtilities.invokeAndWait(() -> {
                 assertEquals(AppState.GAME_MENU, app.state());
                 button(app, "게임으로 돌아가기").doClick(0);
                 for (int i = 0; i < 100 && app.state() == AppState.GAME; i++) app.handleAction(GameAction.HARD_DROP);
                 assertEquals(AppState.GAME_OVER, app.state());
-                JTextField name = visible(app.view()).filter(JTextField.class::isInstance)
-                        .map(JTextField.class::cast).findFirst().orElseThrow();
-                name.requestFocusInWindow();
             });
-            robot.waitForIdle();
-            press(robot, KeyEvent.VK_A); press(robot, KeyEvent.VK_SPACE); press(robot, KeyEvent.VK_B);
+            focus(window, () -> nameField(app));
+            press(KeyEvent.VK_A, 'a'); press(KeyEvent.VK_SPACE, ' '); press(KeyEvent.VK_B, 'b');
             SwingUtilities.invokeAndWait(() -> {
-                assertEquals(AppState.GAME_OVER, app.state(), "Typing a space in a name must not restart");
-                JTextField name = visible(app.view()).filter(JTextField.class::isInstance)
-                        .map(JTextField.class::cast).findFirst().orElseThrow();
-                assertEquals("a b", name.getText());
-                button(app, "시작 메뉴").requestFocusInWindow();
+                assertEquals(AppState.GAME_OVER, app.state(), "A space in the name editor must not restart");
+                assertEquals("a b", nameField(app).getText());
             });
-            robot.waitForIdle(); press(robot, KeyEvent.VK_SPACE);
+            focus(window, () -> button(app, "시작 메뉴"));
+            press(KeyEvent.VK_SPACE, ' ');
             SwingUtilities.invokeAndWait(() -> {
                 assertEquals(AppState.GAME, app.state());
                 assertEquals(0, app.snapshot().game().score());
@@ -85,8 +83,38 @@ class ReviewWindowTest {
             });
         } finally { SwingUtilities.invokeAndWait(() -> { app.exit(); window.dispose(); }); }
     }
-    private static void press(Robot robot, int code) {
-        robot.keyPress(code); robot.keyRelease(code); robot.waitForIdle();
+
+    private static void focus(JFrame window, java.util.function.Supplier<Component> target) throws Exception {
+        AtomicReference<Component> expected = new AtomicReference<>();
+        SwingUtilities.invokeAndWait(() -> {
+            window.toFront(); window.requestFocus();
+            expected.set(target.get()); expected.get().requestFocusInWindow();
+        });
+        long deadline = System.nanoTime() + 2_000_000_000L;
+        AtomicReference<Component> owner = new AtomicReference<>();
+        do {
+            SwingUtilities.invokeAndWait(() -> owner.set(KeyboardFocusManager.getCurrentKeyboardFocusManager().getFocusOwner()));
+            if (owner.get() == expected.get()) return;
+            Thread.sleep(20);
+        } while (System.nanoTime() < deadline);
+        assertSame(expected.get(), owner.get(), "The requested visible component must own focus");
+    }
+
+    private static void press(int code, char character) throws Exception {
+        SwingUtilities.invokeAndWait(() -> {
+            KeyboardFocusManager manager = KeyboardFocusManager.getCurrentKeyboardFocusManager();
+            Component owner = manager.getFocusOwner();
+            assertNotNull(owner);
+            long time = System.currentTimeMillis();
+            manager.redispatchEvent(owner, new KeyEvent(owner, KeyEvent.KEY_PRESSED, time, 0, code, character));
+            if (character != KeyEvent.CHAR_UNDEFINED) {
+                manager.redispatchEvent(owner, new KeyEvent(owner, KeyEvent.KEY_TYPED, time, 0, KeyEvent.VK_UNDEFINED, character));
+            }
+            manager.redispatchEvent(owner, new KeyEvent(owner, KeyEvent.KEY_RELEASED, time, 0, code, character));
+        });
+    }
+    private static JTextField nameField(AppController app) {
+        return visible(app.view()).filter(JTextField.class::isInstance).map(JTextField.class::cast).findFirst().orElseThrow();
     }
     private static JButton button(AppController app, String text) {
         return visible(app.view()).filter(JButton.class::isInstance).map(JButton.class::cast)
