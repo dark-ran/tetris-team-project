@@ -31,6 +31,7 @@ public class AppController {
     private final ScoreboardScreen scoreboardScreen;
     private final GameOverScreen gameOverScreen;
     private AppState state = AppState.START_MENU;
+    private boolean settingsFromGame;
 
     public AppController(Runnable onExit) {
         requireEdt();
@@ -38,11 +39,12 @@ public class AppController {
         startMenu = register(AppState.START_MENU,
                 new StartMenu(this::startGame, this::showSettings, this::showScoreboard, this::exit));
         gameScreen = register(AppState.GAME,
-                new GameScreen(this::showGameOver, this::showStartMenu, this::exit));
+                new GameScreen(this::showGameMenu, this::showStartMenu, this::exit));
         settingsScreen = register(AppState.SETTINGS,
-                new SettingsScreen(this::showStartMenu));
+                new SettingsScreen(this::closeSettings));
         scoreboardScreen = register(AppState.SCOREBOARD,
                 new ScoreboardScreen(this::showStartMenu));
+        gameScreen.setMenuActions(this::resumeGame, this::showSettings, this::showStartMenu, this::exit);
         gameOverScreen = register(AppState.GAME_OVER,
                 new GameOverScreen(this::startGame, this::showScoreboard, this::showStartMenu, this::exit));
     }
@@ -66,10 +68,35 @@ public class AppController {
 
     public void startGame() {
         // TODO(Req1 / WS-02): GameEngine.newGame()과 GameLoop를 연결한다.
+        gameScreen.hideMenu();
         activate(AppState.GAME, gameScreen::showScreen);
     }
 
+    public void showGameMenu() {
+        requireEdt();
+        if (state != AppState.GAME && state != AppState.GAME_MENU) return;
+        state = AppState.GAME_MENU;
+        layout.show(view, AppState.GAME.name());
+        gameScreen.showMenu();
+    }
+
+    public void resumeGame() {
+        requireEdt();
+        if (state != AppState.GAME_MENU) return;
+        gameScreen.hideMenu();
+        activate(AppState.GAME, gameScreen::showScreen);
+    }
+
+    public void closeSettings() {
+        if (settingsFromGame) {
+            state = AppState.GAME_MENU;
+            layout.show(view, AppState.GAME.name());
+            gameScreen.showMenu();
+        } else showStartMenu();
+    }
+
     public void showSettings() {
+        settingsFromGame = state == AppState.GAME_MENU;
         activate(AppState.SETTINGS, settingsScreen::showScreen);
     }
 

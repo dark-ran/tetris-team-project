@@ -13,10 +13,9 @@ import javax.swing.table.DefaultTableModel;
 import tetris.scoreboard.ScoreEntry;
 
 /**
- * 순위 표시용 임시 화면. 전달받은 기록만 표시한다.
+ * Displays ranked records and highlights the newest matching entry.
  *
  * <p>현재 사용 기능: 전달받은 ScoreEntry 목록의 순위·이름·점수 표시와 메뉴 복귀.</p>
- * <p>후속 연결: ScoreBoardService 조회, 신규 기록 강조, ScoreRepository 영구 저장.</p>
  */
 public class ScoreboardScreen extends JPanel {
     private final DefaultTableModel records = new DefaultTableModel(new String[] {"순위", "이름", "점수"}, 0) {
@@ -26,10 +25,11 @@ public class ScoreboardScreen extends JPanel {
         }
     };
     private final JButton backButton;
+    private JTable table;
 
     public ScoreboardScreen(Runnable onBack) {
         ScreenSupport.prepareScreen(this, "스코어보드",
-                "기록 저장소 연결 예정입니다. 현재는 저장된 기록을 읽지 않으며 예시 점수도 표시하지 않습니다.");
+                "상위 기록을 표시합니다. 방금 등록한 기록은 강조됩니다.");
         backButton = ScreenSupport.button("시작 메뉴", onBack);
 
         JPanel tableFrame = ScreenSupport.framedPanel(new BorderLayout());
@@ -40,7 +40,7 @@ public class ScoreboardScreen extends JPanel {
     }
 
     private JScrollPane recordTable() {
-        JTable table = new JTable(records);
+        table = new JTable(records);
         table.setRowHeight(42);
         table.setShowVerticalLines(false);
         table.setShowHorizontalLines(true);
@@ -60,6 +60,7 @@ public class ScoreboardScreen extends JPanel {
     }
 
     public void showScreen(List<ScoreEntry> entries) {
+        table.clearSelection();
         records.setRowCount(0);
         for (int index = 0; index < entries.size(); index++) {
             ScoreEntry entry = entries.get(index);
@@ -67,4 +68,18 @@ public class ScoreboardScreen extends JPanel {
         }
         SwingKeyBindings.focus(backButton);
     }
+    public void showScreen(List<ScoreEntry> entries, ScoreEntry highlighted) {
+        showScreen(entries);
+        if (highlighted == null) return;
+        int selected = -1;
+        for (int i = 0; i < entries.size(); i++) {
+            ScoreEntry entry = entries.get(i);
+            if (entry.name().equals(highlighted.name()) && entry.score() == highlighted.score()) selected = i;
+        }
+        if (selected >= 0) {
+            table.setRowSelectionInterval(selected, selected);
+            table.scrollRectToVisible(table.getCellRect(selected, 0, true));
+        }
+    }
+
 }

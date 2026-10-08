@@ -11,12 +11,16 @@ final class TetrominoMark extends JComponent {
     private static final int CELL_SIZE = 15;
     private final Tetromino piece;
     private final int firstRow;
+    private final boolean accessible;
 
     TetrominoMark() {
         this(PieceType.T);
     }
 
-    TetrominoMark(PieceType type) {
+    TetrominoMark(PieceType type) { this(type, false); }
+
+    TetrominoMark(PieceType type, boolean accessible) {
+        this.accessible = accessible;
         piece = new Tetromino(type);
         int minimumRow = Integer.MAX_VALUE;
         int maximumRow = 0;
@@ -39,7 +43,7 @@ final class TetrominoMark extends JComponent {
         for (int[] cell : piece.cells()) {
             int x = cell[1] * CELL_SIZE;
             int y = (cell[0] - firstRow) * CELL_SIZE;
-            NormalPieceStyle.paintCell(graphics, piece.type(), x, y, CELL_SIZE);
+            NormalPieceStyle.paintCell(graphics, piece.type(), x, y, CELL_SIZE, accessible);
         }
     }
 }

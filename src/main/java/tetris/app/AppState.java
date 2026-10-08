@@ -4,6 +4,7 @@ package tetris.app;
 public enum AppState {
     START_MENU,
     GAME,
+    GAME_MENU,
     GAME_OVER,
     SETTINGS,
     SCOREBOARD,
