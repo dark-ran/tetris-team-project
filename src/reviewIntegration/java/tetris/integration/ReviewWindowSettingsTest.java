@@ -22,7 +22,6 @@ import javax.swing.JComboBox;
 import javax.swing.JDialog;
 import javax.swing.JFrame;
 import javax.swing.JLabel;
-import javax.swing.JOptionPane;
 import javax.swing.SwingUtilities;
 import javax.swing.Timer;
 import org.junit.jupiter.api.io.TempDir;
@@ -72,13 +71,14 @@ class ReviewWindowSettingsTest {
                 if (dialog == null) return;
                 try {
                     Component focus = KeyboardFocusManager.getCurrentKeyboardFocusManager().getFocusOwner();
+                    if (sizeAtPrompt.get() == null) {
+                        sizeAtPrompt.set(window.getSize()); storedAtPrompt.set(repository.load());
+                        assertDialogContentFits(dialog);
+                        message.set(descendants(dialog).filter(JLabel.class::isInstance).map(JLabel.class::cast)
+                                .map(JLabel::getText).collect(java.util.stream.Collectors.joining("\n")));
+                    }
                     if (decision == Decision.ESCAPE && (focus == null || !SwingUtilities.isDescendingFrom(focus, dialog))) return;
                     interaction.stop();
-                    sizeAtPrompt.set(window.getSize()); storedAtPrompt.set(repository.load());
-                    JOptionPane pane = descendants(dialog).filter(JOptionPane.class::isInstance)
-                            .map(JOptionPane.class::cast).findFirst().orElseThrow();
-                    message.set(descendants(pane).filter(JLabel.class::isInstance).map(JLabel.class::cast)
-                            .map(JLabel::getText).collect(java.util.stream.Collectors.joining("\n")));
                     if (decision == Decision.KEEP) {
                         capture(window, "review-settings-small.png"); capture(dialog, "review-window-confirm.png");
                     }
@@ -147,6 +147,25 @@ class ReviewWindowSettingsTest {
         try { window.paint(graphics); } finally { graphics.dispose(); }
         try { ImageIO.write(image, "png", Path.of("build", filename).toFile()); }
         catch (IOException ex) { throw new UncheckedIOException(ex); }
+    }
+    private static void assertDialogContentFits(JDialog dialog) {
+        Container content = dialog.getContentPane();
+        var insets = dialog.getInsets();
+        assertEquals(dialog.getWidth() - insets.left - insets.right, content.getWidth());
+        assertEquals(dialog.getHeight() - insets.top - insets.bottom, content.getHeight());
+        assertTrue(content.isOpaque(), "The dialog must fill its content background");
+        descendants(content).filter(JLabel.class::isInstance).map(JLabel.class::cast).forEach(label -> {
+            assertTrue(label.getFontMetrics(label.getFont()).stringWidth(label.getText()) <= label.getWidth(),
+                    "Dialog text must not be clipped: " + label.getText());
+            assertTrue(label.getFontMetrics(label.getFont()).getHeight() <= label.getHeight());
+        });
+        descendants(content).filter(JButton.class::isInstance).map(JButton.class::cast).forEach(button -> {
+            java.awt.Rectangle bounds = SwingUtilities.convertRectangle(button.getParent(), button.getBounds(), content);
+            assertTrue(new java.awt.Rectangle(0, 0, content.getWidth(), content.getHeight()).contains(bounds),
+                    "Buttons must remain inside the content area");
+            assertTrue(button.getFontMetrics(button.getFont()).stringWidth(button.getText())
+                    + button.getInsets().left + button.getInsets().right <= button.getWidth());
+        });
     }
     private static Stream<Component> descendants(Component component) {
         return component instanceof Container container
