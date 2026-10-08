@@ -1,38 +1,69 @@
 package tetris.loop;
 
 import java.util.Objects;
+import javax.swing.SwingUtilities;
+import javax.swing.Timer;
 
-/** 게임 Tick의 수명주기를 담당한다. 타이머와 입력 처리 순서는 후속 구현에서 결정한다. */
+/** Swing 이벤트 처리 스레드에서 자동 낙하와 입력을 순서대로 처리하도록 타이머를 제어한다. */
 public class GameLoop {
-    private Runnable tickListener;
+    private enum Phase { STOPPED, RUNNING, PAUSED }
 
-    // 연결 계약 제안: 실제 타이머는 이 콜백을 EDT에서 호출한다.
+    private final Timer timer = new Timer(1000, event -> tick());
+    private Runnable tickListener;
+    private Phase phase = Phase.STOPPED;
+
+    /** 자동 낙하가 발생할 때 호출할 앱의 처리 메서드를 등록한다. */
     public void setTickListener(Runnable listener) {
         tickListener = Objects.requireNonNull(listener);
     }
 
-    // TODO(Req1): 낙하 간격 변경
+    /** 간격 변경과 재개 후에는 한 번의 전체 간격이 지난 뒤 다음 낙하가 발생한다. */
     public void setIntervalMillis(long millis) {
-        throw new UnsupportedOperationException("TODO: 낙하 간격 변경");
+        requireEventThread();
+        if (millis < 1 || millis > Integer.MAX_VALUE) {
+            throw new IllegalArgumentException("낙하 간격은 1 이상인 정수 밀리초 범위여야 합니다.");
+        }
+        int delay = (int) millis;
+        if (timer.getDelay() == delay) return;
+        timer.setDelay(delay);
+        timer.setInitialDelay(delay);
+        if (phase == Phase.RUNNING) timer.restart();
     }
 
     public void start() {
-        // TODO(Req1): 게임 루프 시작
-        throw new UnsupportedOperationException("TODO: 게임 루프 시작");
+        requireEventThread();
+        if (phase == Phase.RUNNING) return;
+        phase = Phase.RUNNING;
+        timer.restart();
     }
 
     public void stop() {
-        // TODO(Req1): 게임 루프 종료
-        throw new UnsupportedOperationException("TODO: 게임 루프 종료");
+        requireEventThread();
+        timer.stop();
+        phase = Phase.STOPPED;
     }
 
     public void pause() {
-        // TODO(Req1): 자동 낙하 일시정지
-        throw new UnsupportedOperationException("TODO: 자동 낙하 일시정지");
+        requireEventThread();
+        if (phase != Phase.RUNNING) return;
+        timer.stop();
+        phase = Phase.PAUSED;
     }
 
     public void resume() {
-        // TODO(Req1): 자동 낙하 재개
-        throw new UnsupportedOperationException("TODO: 자동 낙하 재개");
+        requireEventThread();
+        if (phase != Phase.PAUSED) return;
+        phase = Phase.RUNNING;
+        timer.restart();
+    }
+
+    private void tick() {
+        if (phase == Phase.RUNNING && tickListener != null) tickListener.run();
+    }
+
+    private static void requireEventThread() {
+        if (!SwingUtilities.isEventDispatchThread()) {
+            throw new IllegalStateException("게임 루프는 Swing 이벤트 처리 스레드에서 제어해야 합니다.");
+        }
     }
 }

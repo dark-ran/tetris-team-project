@@ -31,4 +31,15 @@ final class NormalPieceStyle {
         graphics.setColor(CELL_BORDER);
         graphics.drawRect(x, y, cellSize - 1, cellSize - 1);
     }
+    static void paintCell(Graphics graphics, PieceType type, int x, int y, int size, boolean accessible) {
+        paintCell(graphics, type, x, y, size);
+        if (!accessible || size < 10) return;
+        graphics.setFont(AppTheme.font(java.awt.Font.BOLD, Math.max(9, size * 0.65f)));
+        java.awt.FontMetrics metrics = graphics.getFontMetrics();
+        String mark = type.name();
+        graphics.setColor(java.awt.Color.BLACK);
+        graphics.drawString(mark, x + (size - metrics.stringWidth(mark)) / 2,
+                y + (size - metrics.getHeight()) / 2 + metrics.getAscent());
+    }
+
 }
