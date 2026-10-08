@@ -4,12 +4,15 @@ import java.awt.BorderLayout;
 import java.awt.Component;
 import java.awt.Dimension;
 import java.awt.Font;
+import java.util.Objects;
 import javax.swing.Box;
 import javax.swing.JButton;
 import javax.swing.JLabel;
 import javax.swing.JPanel;
 import javax.swing.JSeparator;
 import tetris.game.GameState;
+import tetris.input.InputHandler;
+import tetris.settings.GameSettings;
 
 /**
  * 게임 상태 연결 전 보드와 화면 전환 구조를 제공하는 화면.
@@ -19,6 +22,19 @@ import tetris.game.GameState;
  */
 public class GameScreen extends JPanel {
     private final BoardPreview boardPreview = new BoardPreview();
+    private InputHandler inputHandler;
+
+    public void setInputHandler(InputHandler inputHandler) {
+        this.inputHandler = Objects.requireNonNull(inputHandler);
+    }
+
+    // TODO(4번): 색각이상 모드·키 안내를 반영한다. 키 바인딩은 SwingKeyBindings가 담당한다.
+    public void applySettings(GameSettings settings) {
+        if (inputHandler == null) throw new IllegalStateException("InputHandler connection is required");
+        SwingKeyBindings.bindGameKeys(this, inputHandler, settings.keyBindings().values().stream()
+                .collect(java.util.stream.Collectors.toSet()));
+        throw new UnsupportedOperationException("TODO: 게임 화면 설정 적용");
+    }
 
     public GameScreen(Runnable onFinishPreview, Runnable onBack, Runnable onExit) {
         ScreenSupport.prepareScreen(this, "게임",

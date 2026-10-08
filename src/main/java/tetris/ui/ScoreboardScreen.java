@@ -26,6 +26,9 @@ public class ScoreboardScreen extends JPanel {
         }
     };
     private final JButton backButton;
+    private ScoreEntry highlightedEntry;
+
+    public ScoreEntry highlightedEntry() { return highlightedEntry; }
 
     public ScoreboardScreen(Runnable onBack) {
         ScreenSupport.prepareScreen(this, "스코어보드",
@@ -60,6 +63,12 @@ public class ScoreboardScreen extends JPanel {
     }
 
     public void showScreen(List<ScoreEntry> entries) {
+        showScreen(entries, null);
+    }
+
+    public void showScreen(List<ScoreEntry> entries, ScoreEntry highlighted) {
+        highlightedEntry = highlighted;
+        // TODO(4번): highlighted와 이름·점수가 일치하는 행에 강조 렌더러를 적용한다. null이면 강조하지 않는다.
         records.setRowCount(0);
         for (int index = 0; index < entries.size(); index++) {
             ScoreEntry entry = entries.get(index);

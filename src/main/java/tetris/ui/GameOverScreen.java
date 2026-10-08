@@ -4,6 +4,10 @@ import java.awt.BorderLayout;
 import java.awt.Font;
 import java.awt.GridBagLayout;
 import java.awt.GridLayout;
+import java.util.Objects;
+import java.util.function.BooleanSupplier;
+import java.util.function.Consumer;
+import java.util.function.Supplier;
 import javax.swing.JButton;
 import javax.swing.JLabel;
 import javax.swing.JPanel;
@@ -19,6 +23,37 @@ public class GameOverScreen extends JPanel {
 
     private final JLabel scoreLabel = new JLabel();
     private final JButton restartButton;
+    private Consumer<String> onRegister;
+    private Runnable onSkip;
+    private BooleanSupplier onRetrySave;
+    private Supplier<String> saveError;
+    private boolean canRegister;
+
+    public void setOnRegister(Consumer<String> callback) { onRegister = Objects.requireNonNull(callback); }
+    public void setOnSkip(Runnable callback) { onSkip = Objects.requireNonNull(callback); }
+    public void setOnRetrySave(BooleanSupplier callback) { onRetrySave = Objects.requireNonNull(callback); }
+    public void setSaveErrorSupplier(Supplier<String> supplier) { saveError = Objects.requireNonNull(supplier); }
+
+    // TODO(4번): 이름 입력/건너뛰기/재시도 버튼을 연결하고 입력 예외·저장 오류를 화면에 표시한다.
+    public void submitScoreName(String name) {
+        Objects.requireNonNull(onRegister, "Score registration callback is required").accept(name);
+    }
+    public void skipRegistration() {
+        Objects.requireNonNull(onSkip, "Score skip callback is required").run();
+    }
+    public boolean retryScoreSave() {
+        return Objects.requireNonNull(onRetrySave, "Score retry callback is required").getAsBoolean();
+    }
+    public String scoreSaveError() {
+        return Objects.requireNonNull(saveError, "Score error supplier is required").get();
+    }
+    public boolean canRegisterScore() { return canRegister; }
+
+    public void showScreen(long score, boolean canRegister) {
+        showScreen(score);
+        this.canRegister = canRegister;
+        // TODO(4번): canRegister일 때만 이름 입력을 표시한다. 이 메서드는 아직 입력 UI를 만들지 않는다.
+    }
 
     public GameOverScreen(Runnable onRestart, Runnable onScoreboard, Runnable onBack, Runnable onExit) {
         ScreenSupport.prepareScreen(this, "게임 종료",
@@ -45,11 +80,13 @@ public class GameOverScreen extends JPanel {
 
     /** 게임 미연결 상태의 미리보기. 실제 점수 대신 미측정을 표시한다. */
     public void showScreen() {
+        canRegister = false;
         scoreLabel.setText(SCORE_UNMEASURED);
         SwingKeyBindings.focus(restartButton);
     }
 
     public void showScreen(long score) {
+        canRegister = false;
         scoreLabel.setText("최종 점수: " + score);
         SwingKeyBindings.focus(restartButton);
     }
