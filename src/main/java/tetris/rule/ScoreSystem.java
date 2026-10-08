@@ -1,14 +1,21 @@
 package tetris.rule;
 
-/** 낙하 및 줄 삭제 점수를 담당한다. 가속 보너스와 추가 점수 규칙은 미정이다. */
+/** 기본 낙하 1점, 가속 낙하 2점, 복수 줄 삭제 보너스. */
 public class ScoreSystem {
+    /** 엔진이 반환한 실제 이동 거리로 계산한다. */
     public int onDrop(int movedCells, boolean accelerated) {
-        // TODO(Req1): 낙하 점수 계산
-        throw new UnsupportedOperationException("TODO: 낙하 점수 계산");
+        if (movedCells < 0) throw new IllegalArgumentException("movedCells must be nonnegative");
+        return Math.multiplyExact(movedCells, accelerated ? 2 : 1);
     }
 
     public int onLineClear(int clearedRows) {
-        // TODO(Req1): 줄 삭제 점수 계산
-        throw new UnsupportedOperationException("TODO: 줄 삭제 점수 계산");
+        return switch (clearedRows) {
+            case 0 -> 0;
+            case 1 -> 100;
+            case 2 -> 300;
+            case 3 -> 500;
+            case 4 -> 800;
+            default -> throw new IllegalArgumentException("clearedRows must be between 0 and 4");
+        };
     }
 }
