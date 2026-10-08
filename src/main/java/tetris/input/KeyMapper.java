@@ -3,7 +3,6 @@ package tetris.input;
 import java.awt.event.KeyEvent;
 import java.util.HashMap;
 import java.util.Map;
-import java.util.Objects;
 import tetris.game.GameAction;
 import tetris.settings.GameSettings;
 
@@ -22,8 +21,8 @@ public class KeyMapper {
 
     private static Map<Integer, GameAction> validateBindings(Map<String, Integer> bindings) {
         Map<Integer, GameAction> replacement = new HashMap<>();
-        GameSettings.normalizeKeyBindings(bindings).forEach((name, code) ->
-                replacement.put(code, GameAction.valueOf(name)));
+        GameSettings.normalizeKeyBindings(bindings)
+                .forEach((name, code) -> replacement.put(code, GameAction.valueOf(name)));
         replacement.put(KeyEvent.VK_ESCAPE, GameAction.TOGGLE_PAUSE);
         return Map.copyOf(replacement);
     }
