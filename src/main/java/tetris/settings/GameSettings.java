@@ -11,7 +11,7 @@ import tetris.game.GameAction;
 
 /**
  * Settings data value object.
- * Holds window size preset, color-blind mode toggle, and key binding mappings.
+ * Holds window size, color vision palette, independent piece patterns, and key bindings.
  */
 public final class GameSettings {
     public static final int PRESET_SMALL = 0;
@@ -39,7 +39,8 @@ public final class GameSettings {
     }
 
     private final int windowSizePreset;
-    private final boolean colorBlindMode;
+    private final ColorVisionMode colorVisionMode;
+    private final boolean piecePatternsEnabled;
     private final Map<String, Integer> keyBindings;
 
     /**
@@ -57,6 +58,12 @@ public final class GameSettings {
      * @param keyBindings action-to-keyCode mapping
      */
     public GameSettings(int windowSizePreset, boolean colorBlindMode, Map<String, Integer> keyBindings) {
+        this(windowSizePreset, colorBlindMode ? ColorVisionMode.DEUTAN : ColorVisionMode.NORMAL,
+                colorBlindMode, keyBindings);
+    }
+
+    public GameSettings(int windowSizePreset, ColorVisionMode mode, boolean patterns,
+            Map<String, Integer> keyBindings) {
         if (!isValidPreset(windowSizePreset)) {
             throw new IllegalArgumentException("Invalid window size preset: " + windowSizePreset
                     + ". Expected between " + PRESET_SMALL + " and " + PRESET_LARGE);
@@ -64,7 +71,8 @@ public final class GameSettings {
         Objects.requireNonNull(keyBindings, "keyBindings must not be null");
 
         this.windowSizePreset = windowSizePreset;
-        this.colorBlindMode = colorBlindMode;
+        this.colorVisionMode = Objects.requireNonNull(mode, "colorVisionMode must not be null");
+        this.piecePatternsEnabled = patterns;
         this.keyBindings = normalizeKeyBindings(keyBindings);
     }
 
@@ -124,8 +132,11 @@ public final class GameSettings {
     }
 
     public boolean colorBlindMode() {
-        return colorBlindMode;
+        return colorVisionMode != ColorVisionMode.NORMAL;
     }
+
+    public ColorVisionMode colorVisionMode() { return colorVisionMode; }
+    public boolean piecePatternsEnabled() { return piecePatternsEnabled; }
 
     public Map<String, Integer> keyBindings() {
         return keyBindings;
@@ -151,15 +162,23 @@ public final class GameSettings {
     }
 
     public GameSettings withWindowSizePreset(int preset) {
-        return new GameSettings(preset, this.colorBlindMode, this.keyBindings);
+        return new GameSettings(preset, colorVisionMode, piecePatternsEnabled, keyBindings);
     }
 
     public GameSettings withColorBlindMode(boolean enabled) {
-        return new GameSettings(this.windowSizePreset, enabled, this.keyBindings);
+        return withColorVisionMode(enabled ? ColorVisionMode.DEUTAN : ColorVisionMode.NORMAL);
+    }
+
+    public GameSettings withColorVisionMode(ColorVisionMode mode) {
+        return new GameSettings(windowSizePreset, mode, mode.defaultPatternsEnabled(), keyBindings);
+    }
+
+    public GameSettings withPiecePatternsEnabled(boolean enabled) {
+        return new GameSettings(windowSizePreset, colorVisionMode, enabled, keyBindings);
     }
 
     public GameSettings withKeyBindings(Map<String, Integer> bindings) {
-        return new GameSettings(this.windowSizePreset, this.colorBlindMode, bindings);
+        return new GameSettings(windowSizePreset, colorVisionMode, piecePatternsEnabled, bindings);
     }
 
     @Override
@@ -167,13 +186,14 @@ public final class GameSettings {
         if (this == o) return true;
         if (!(o instanceof GameSettings that)) return false;
         return windowSizePreset == that.windowSizePreset
-                && colorBlindMode == that.colorBlindMode
+                && colorVisionMode == that.colorVisionMode
+                && piecePatternsEnabled == that.piecePatternsEnabled
                 && Objects.equals(keyBindings, that.keyBindings);
     }
 
     @Override
     public int hashCode() {
-        return Objects.hash(windowSizePreset, colorBlindMode, keyBindings);
+        return Objects.hash(windowSizePreset, colorVisionMode, piecePatternsEnabled, keyBindings);
     }
 
     @Override
@@ -181,7 +201,8 @@ public final class GameSettings {
         return "GameSettings{" +
                 "windowSizePreset=" + windowSizePreset +
                 " (" + windowSizePresetLabel() + ")" +
-                ", colorBlindMode=" + colorBlindMode +
+                ", colorVisionMode=" + colorVisionMode +
+                ", piecePatternsEnabled=" + piecePatternsEnabled +
                 ", keyBindings=" + keyBindings +
                 '}';
     }

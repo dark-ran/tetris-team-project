@@ -8,6 +8,7 @@ import tetris.game.GameState;
 import tetris.game.GameAction;
 import tetris.input.InputHandler;
 import tetris.settings.GameSettings;
+import tetris.settings.ColorVisionMode;
 
 /** Renders game snapshots and hosts the Esc menu without replacing the game view. */
 public class GameScreen extends JPanel {
@@ -23,7 +24,9 @@ public class GameScreen extends JPanel {
     private final Map<Integer, String> boundKeys = new LinkedHashMap<>();
     private Map<String, Integer> keys = defaultKeys();
     private InputHandler inputHandler;
-    private boolean colorBlind;
+    private ColorVisionMode mode = ColorVisionMode.NORMAL;
+    private boolean patterns;
+    private GameState lastState;
 
     public GameScreen(Runnable onMenu, Runnable onBack, Runnable onExit) {
         this.onMenu = Objects.requireNonNull(onMenu);
@@ -65,9 +68,11 @@ public class GameScreen extends JPanel {
     public void applySettings(GameSettings settings) {
         Objects.requireNonNull(settings);
         keys = new LinkedHashMap<>(settings.keyBindings());
-        colorBlind = settings.colorBlindMode();
-        boardPreview.setColorBlindMode(colorBlind);
+        mode = settings.colorVisionMode();
+        patterns = settings.piecePatternsEnabled();
+        boardPreview.setAppearance(mode, patterns);
         bindKeys();
+        if (lastState != null) render(lastState);
         repaint();
     }
 
@@ -141,10 +146,11 @@ public class GameScreen extends JPanel {
     public void showScreen() { SwingKeyBindings.focus(boardPreview); }
     public void render(GameState state) {
         if (state == null) return;
+        lastState = state;
         boardPreview.render(state);
         scoreLabel.setText(Long.toString(state.score())); levelLabel.setText(Integer.toString(state.level()));
         nextPiecePanel.removeAll();
-        if (!state.nextPieces().isEmpty()) nextPiecePanel.add(new TetrominoMark(state.nextPieces().getFirst(), colorBlind));
+        if (!state.nextPieces().isEmpty()) nextPiecePanel.add(new TetrominoMark(state.nextPieces().getFirst(), mode, patterns));
         nextPiecePanel.revalidate(); nextPiecePanel.repaint();
     }
 }

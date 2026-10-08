@@ -1,6 +1,7 @@
 package tetris.app;
 
 import java.awt.CardLayout;
+import java.awt.Dimension;
 import java.awt.Window;
 import java.io.UncheckedIOException;
 import java.util.Objects;
@@ -29,6 +30,8 @@ import tetris.ui.GameScreen;
 import tetris.ui.ScoreboardScreen;
 import tetris.ui.SettingsScreen;
 import tetris.ui.StartMenu;
+import tetris.ui.WindowSizeConfirmation;
+import tetris.ui.WindowSizeConfirmationDialog;
 
 /**
  * 입력·자동 낙하·화면 전환을 연결하고, 엔진 결과에 점수·레벨과 게임오버 후처리를 반영한다.
@@ -64,6 +67,7 @@ public class AppController {
     private GameSettings settings;
     private String persistenceError;
     private boolean settingsFromGame;
+    private final WindowSizeConfirmation windowSizeConfirmation;
 
     public AppController(Runnable onExit) {
         this(onExit, new GameEngine(), null, null, null, new ScoreBoardService(), new SettingsService(), null);
@@ -78,7 +82,16 @@ public class AppController {
             LongConsumer intervalUpdater, Consumer<GameState> renderer,
             ScoreBoardService scores, SettingsService settingsService,
             Consumer<GameSettings> settingsApplier) {
+        this(onExit, engine, loop, intervalUpdater, renderer, scores, settingsService,
+                settingsApplier, new WindowSizeConfirmationDialog());
+    }
+
+    public AppController(Runnable onExit, GameEngine engine, GameLoop loop,
+            LongConsumer intervalUpdater, Consumer<GameState> renderer,
+            ScoreBoardService scores, SettingsService settingsService,
+            Consumer<GameSettings> settingsApplier, WindowSizeConfirmation confirmation) {
         requireEdt();
+        windowSizeConfirmation = Objects.requireNonNull(confirmation);
         this.onExit = Objects.requireNonNull(onExit);
         this.engine = Objects.requireNonNull(engine);
         this.scores = Objects.requireNonNull(scores);
@@ -103,8 +116,9 @@ public class AppController {
         gameScreen.setMenuActions(this::resumeGame, this::showSettings, this::showStartMenu, this::exit);
         if (settingsService != null) {
             settingsScreen.setOnSaveValues(values -> updateSettings(
-                    new GameSettings(values.preset(), values.colorBlind(), values.keys())));
-            settingsScreen.setOnRestoreDefaults(this::restoreDefaultSettings);
+                    new GameSettings(values.preset(), values.colorVisionMode(), values.patternsEnabled(), values.keys())));
+            settingsScreen.setOnWindowSizePreview(this::previewWindowSize);
+            settingsScreen.setOnRestoreDefaults(this::restoreDefaultsFromSettingsScreen);
         }
         settingsScreen.setOnResetScores(this::resetScores);
         gameOverScreen.setOnRegister(this::registerScore);
@@ -330,9 +344,44 @@ public class AppController {
         gameScreen.applySettings(next);
         settingsScreen.showSettings(next);
         gameScreen.render(engine.state());
+        resizeWindow(next.windowDimension());
+    }
+
+    private boolean previewWindowSize(int preset) {
+        GameSettings current = requireSettingsService().current();
+        SettingsScreen.Values draft = settingsScreen.values();
+        if (!confirmAndSaveWindowSize(current.withWindowSizePreset(preset))) return false;
+        settingsScreen.showValues(draft);
+        return true;
+    }
+
+    private void restoreDefaultsFromSettingsScreen() {
+        GameSettings defaults = GameSettings.defaultSettings();
+        if (requireSettingsService().current().windowSizePreset() == defaults.windowSizePreset()) {
+            restoreDefaultSettings();
+        } else if (!confirmAndSaveWindowSize(defaults)) {
+            settingsScreen.showMessage("기본값 복구를 취소했습니다. 이전 창 크기를 유지합니다.");
+        }
+    }
+
+    private boolean confirmAndSaveWindowSize(GameSettings next) {
         Window window = SwingUtilities.getWindowAncestor(view);
-        if (window != null) window.setSize(next.windowDimension());
-        else view.setPreferredSize(next.windowDimension());
+        Dimension previous = window != null ? window.getSize() : view.getPreferredSize();
+        Dimension proposed = next.windowDimension();
+        resizeWindow(proposed);
+        try {
+            if (!windowSizeConfirmation.confirm(view, new Dimension(previous), new Dimension(proposed))) {
+                resizeWindow(previous); return false;
+            }
+            updateSettings(next);
+            return true;
+        } catch (RuntimeException ex) { resizeWindow(previous); throw ex; }
+    }
+
+    private void resizeWindow(Dimension dimension) {
+        Window window = SwingUtilities.getWindowAncestor(view);
+        if (window != null) window.setSize(dimension);
+        else view.setPreferredSize(dimension);
         view.revalidate();
     }
     public void exit() {

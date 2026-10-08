@@ -127,10 +127,10 @@ tasks.register('reviewWindowTest', Test) {
     testClassesDirs = sourceSets.reviewIntegration.output.classesDirs
     classpath = sourceSets.reviewIntegration.runtimeClasspath
     useJUnitPlatform()
-    include '**/ReviewWindowTest.class'
+    include '**/ReviewWindow*Test.class'
     systemProperty 'java.awt.headless', 'false'
 }
-tasks.named('reviewIntegrationTest') { exclude '**/ReviewWindowTest.class' }
+tasks.named('reviewIntegrationTest') { exclude '**/ReviewWindow*Test.class' }
 
 // Verify the assembled app's headless integration flow in normal builds and CI.
 tasks.named('check') { dependsOn tasks.named('reviewIntegrationTest') }

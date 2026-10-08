@@ -10,13 +10,19 @@ import tetris.board.Board;
 import tetris.game.GameState;
 import tetris.piece.Tetromino;
 import tetris.piece.PieceType;
+import tetris.settings.ColorVisionMode;
 
 
 /** Renders fixed and falling cells from an immutable engine snapshot. */
 final class BoardPreview extends JPanel {
     private GameState state;
-    private boolean colorBlind;
-    void setColorBlindMode(boolean enabled) { colorBlind = enabled; repaint(); }
+    private ColorVisionMode mode = ColorVisionMode.NORMAL;
+    private boolean patterns;
+    void setAppearance(ColorVisionMode mode, boolean patterns) {
+        this.mode = java.util.Objects.requireNonNull(mode);
+        this.patterns = patterns;
+        repaint();
+    }
     private static final int MAX_CELL_SIZE = 26;
     private static final int MIN_CELL_SIZE = 16;
     private static final int PADDING = 10;
@@ -54,7 +60,7 @@ final class BoardPreview extends JPanel {
             paintBoardFrame(g, board);
             paintEmptyCells(g, board);
             if (state != null) {
-                paintGameState(g, board, state, colorBlind);
+                paintGameState(g, board, state, mode, patterns);
             }
         } finally {
             g.dispose();
@@ -62,7 +68,8 @@ final class BoardPreview extends JPanel {
     }
 
     // GameState의 보드 정보를 확인하고, 빈 칸을 제외한 블록을 화면에 그린다.
-    private static void paintGameState(Graphics2D g, BoardGeometry board, GameState state, boolean colorBlind) {
+    private static void paintGameState(Graphics2D g, BoardGeometry board, GameState state,
+            ColorVisionMode mode, boolean patterns) {
         // 고정된 블록을 보드에 그린다.
         int[][] cells = state.board().snapshot();
         int cellSize = board.cellSize();
@@ -82,12 +89,12 @@ final class BoardPreview extends JPanel {
                 // 저장된 값에 맞는 블록 종류로 표시한다.
                 PieceType type = PieceType.fromCellValue(value);
 
-                NormalPieceStyle.paintCell(
+                PieceStyle.paintCell(
                         g,
                         type,
                         x + 2,
                         y + 2,
-                        cellSize - 4, colorBlind);
+                        cellSize - 4, mode, patterns);
             }
         }
 
@@ -95,20 +102,32 @@ final class BoardPreview extends JPanel {
         Tetromino currentPiece = state.currentPiece();
 
         if (currentPiece != null) {
+            Board fixed = state.board();
+            int ghostRow = state.currentRow();
+            while (fixed.canPlace(currentPiece, ghostRow + 1, state.currentColumn())) ghostRow++;
+            if (ghostRow != state.currentRow()) {
+                for (int[] cell : currentPiece.cells()) {
+                    int row = ghostRow + cell[0], column = state.currentColumn() + cell[1];
+                    if (row >= 0 && row < Board.ROWS && column >= 0 && column < Board.COLUMNS)
+                        PieceStyle.paintGhostCell(g, board.x() + column * cellSize + 2,
+                                board.y() + row * cellSize + 2, cellSize - 4);
+                }
+            }
             for (int[] cell : currentPiece.cells()) {
 
                 int row = state.currentRow() + cell[0];
                 int column = state.currentColumn() + cell[1];
+                if (row < 0 || row >= Board.ROWS || column < 0 || column >= Board.COLUMNS) continue;
 
                 int x = board.x() + column * cellSize;
                 int y = board.y() + row * cellSize;
 
-                NormalPieceStyle.paintCell(
+                PieceStyle.paintCell(
                         g,
                         currentPiece.type(),
                         x + 2,
                         y + 2,
-                        cellSize - 4, colorBlind);
+                        cellSize - 4, mode, patterns);
             }
         }
     }

@@ -29,7 +29,7 @@ class MenuSettingsRestartTest {
             AppController app = new AppController(() -> {}, new GameEngine(new Random(21)),
                     new GameLoop(), null, null,
                     new ScoreBoardService(new ScoreRepository(directory.resolve("scores"))),
-                    new SettingsService(repository), null);
+                    new SettingsService(repository), null, (owner, previous, proposed) -> true);
             reference.set(app);
         });
         AppController app = reference.get();
@@ -46,6 +46,10 @@ class MenuSettingsRestartTest {
                 JComboBox<?> size = visible(app.view()).filter(JComboBox.class::isInstance)
                         .map(JComboBox.class::cast).findFirst().orElseThrow();
                 size.setSelectedIndex(2);
+                JComboBox<?> mode = visible(app.view()).filter(JComboBox.class::isInstance)
+                        .map(JComboBox.class::cast).filter(combo -> combo.getItemAt(0) instanceof ColorVisionMode)
+                        .findFirst().orElseThrow();
+                mode.setSelectedItem(ColorVisionMode.DEUTAN);
                 JCheckBox accessible = visible(app.view()).filter(JCheckBox.class::isInstance)
                         .map(JCheckBox.class::cast).findFirst().orElseThrow();
                 accessible.setSelected(true);

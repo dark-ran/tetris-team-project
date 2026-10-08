@@ -60,6 +60,8 @@ public class SettingsRepository {
         Properties properties = new Properties();
         properties.setProperty("window.size.preset", String.valueOf(settings.windowSizePreset()));
         properties.setProperty("color.blind.mode", String.valueOf(settings.colorBlindMode()));
+        properties.setProperty("color.vision.mode", settings.colorVisionMode().name());
+        properties.setProperty("piece.patterns.enabled", String.valueOf(settings.piecePatternsEnabled()));
 
         for (Map.Entry<String, Integer> entry : settings.keyBindings().entrySet()) {
             properties.setProperty("key." + entry.getKey(), String.valueOf(entry.getValue()));
@@ -118,6 +120,17 @@ public class SettingsRepository {
             }
         }
 
-        return new GameSettings(preset, colorBlind, keyBindings);
+        String modeName = properties.getProperty("color.vision.mode");
+        ColorVisionMode mode = modeName == null
+                ? (colorBlind ? ColorVisionMode.DEUTAN : ColorVisionMode.NORMAL)
+                : ColorVisionMode.valueOf(modeName.trim());
+        String patternsValue = properties.getProperty("piece.patterns.enabled");
+        boolean patterns = mode.defaultPatternsEnabled();
+        if (patternsValue != null) {
+            if (!patternsValue.trim().equals("true") && !patternsValue.trim().equals("false"))
+                throw new IllegalArgumentException("Invalid pattern setting");
+            patterns = Boolean.parseBoolean(patternsValue.trim());
+        }
+        return new GameSettings(preset, mode, patterns, keyBindings);
     }
 }
