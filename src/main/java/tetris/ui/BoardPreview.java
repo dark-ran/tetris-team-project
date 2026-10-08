@@ -12,9 +12,11 @@ import tetris.piece.Tetromino;
 import tetris.piece.PieceType;
 
 
-/** 실제 게임 상태 연결 전 보드 크기와 테두리만 표시하는 화면 구성 요소. */
+/** Renders fixed and falling cells from an immutable engine snapshot. */
 final class BoardPreview extends JPanel {
     private GameState state;
+    private boolean colorBlind;
+    void setColorBlindMode(boolean enabled) { colorBlind = enabled; repaint(); }
     private static final int MAX_CELL_SIZE = 26;
     private static final int MIN_CELL_SIZE = 16;
     private static final int PADDING = 10;
@@ -52,7 +54,7 @@ final class BoardPreview extends JPanel {
             paintBoardFrame(g, board);
             paintEmptyCells(g, board);
             if (state != null) {
-                paintGameState(g, board, state);
+                paintGameState(g, board, state, colorBlind);
             }
         } finally {
             g.dispose();
@@ -60,7 +62,7 @@ final class BoardPreview extends JPanel {
     }
 
     // GameState의 보드 정보를 확인하고, 빈 칸을 제외한 블록을 화면에 그린다.
-    private static void paintGameState(Graphics2D g, BoardGeometry board, GameState state) {
+    private static void paintGameState(Graphics2D g, BoardGeometry board, GameState state, boolean colorBlind) {
         // 고정된 블록을 보드에 그린다.
         int[][] cells = state.board().snapshot();
         int cellSize = board.cellSize();
@@ -85,7 +87,7 @@ final class BoardPreview extends JPanel {
                         type,
                         x + 2,
                         y + 2,
-                        cellSize - 4);
+                        cellSize - 4, colorBlind);
             }
         }
 
@@ -106,7 +108,7 @@ final class BoardPreview extends JPanel {
                         currentPiece.type(),
                         x + 2,
                         y + 2,
-                        cellSize - 4);
+                        cellSize - 4, colorBlind);
             }
         }
     }
