@@ -131,3 +131,6 @@ tasks.register('reviewWindowTest', Test) {
     systemProperty 'java.awt.headless', 'false'
 }
 tasks.named('reviewIntegrationTest') { exclude '**/ReviewWindowTest.class' }
+
+// Verify the assembled app's headless integration flow in normal builds and CI.
+tasks.named('check') { dependsOn tasks.named('reviewIntegrationTest') }
