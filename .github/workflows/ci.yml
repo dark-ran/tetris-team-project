@@ -47,3 +47,72 @@ jobs:
       - name: Build and test on Windows
         if: runner.os == 'Windows'
         run: .\gradlew.bat --no-daemon clean build jacocoTestReport
+
+      - name: Summarize JaCoCo coverage
+        if: always()
+        shell: pwsh
+        run: ./.github/scripts/coverage-summary.ps1
+
+      - name: Save coverage and test reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-reports-${{ matrix.os }}
+          path: |
+            build/reports/jacoco/test/
+            build/reports/tests/test/
+            build/test-results/test/
+          retention-days: 14
+          if-no-files-found: warn
+
+  coverage-comment:
+    name: Update PR coverage comment
+    needs: test
+    if: >-
+      ${{ !cancelled() && github.event_name == 'pull_request' &&
+          github.event.pull_request.head.repo.full_name == github.repository &&
+          !contains(github.event.pull_request.labels.*.name, 'no-coverage-comment') &&
+          github.actor != 'dependabot[bot]' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      actions: read
+      pull-requests: write
+    steps:
+      - name: Download coverage summary
+        uses: actions/download-artifact@v4
+        with:
+          name: test-reports-ubuntu-latest
+          path: reports
+
+      - name: Create or update coverage comment
+        uses: actions/github-script@v9
+        env:
+          TEST_JOB_RESULT: ${{ needs.test.result }}
+        with:
+          script: |
+            const fs = require('node:fs');
+            const marker = '<!-- tetris-jacoco-coverage -->';
+            const summary = fs.readFileSync('reports/reports/jacoco/test/coverage-summary.md', 'utf8');
+            const runUrl = `${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`;
+            const body = `${marker}\n# JaCoCo Coverage Report\n\n` +
+              `Commit: \`${context.payload.pull_request.head.sha}\`\n\n` +
+              `Environment: ubuntu-latest · CI result: ${process.env.TEST_JOB_RESULT}\n\n` +
+              `${summary}\n[Actions results for all environments](${runUrl})`;
+            const comments = await github.paginate(github.rest.issues.listComments, {
+              ...context.repo,
+              issue_number: context.issue.number,
+              per_page: 100
+            });
+            const existing = comments.find(comment =>
+              comment.user?.login === 'github-actions[bot]' && comment.body?.startsWith(marker)
+            );
+            if (existing) {
+              await github.rest.issues.updateComment({
+                ...context.repo, comment_id: existing.id, body
+              });
+            } else {
+              await github.rest.issues.createComment({
+                ...context.repo, issue_number: context.issue.number, body
+              });
+            }
