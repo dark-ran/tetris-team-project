@@ -120,7 +120,8 @@ public class AppController {
             settingsScreen.setOnWindowSizePreview(this::previewWindowSize);
             settingsScreen.setOnRestoreDefaults(this::restoreDefaultsFromSettingsScreen);
         }
-        settingsScreen.setOnResetScores(this::resetScores);
+        settingsScreen.setOnResetScores(this::resetScoreboard);
+        scoreboardScreen.setOnResetScores(this::resetScoreboard);
         gameOverScreen.setOnRegister(this::registerScore);
         gameOverScreen.setOnSkip(this::skipScoreRegistration);
         gameOverScreen.setOnRetrySave(this::retryScoreSave);
@@ -196,8 +197,10 @@ public class AppController {
         gameScreen.showMenu();
     }
     public void showScoreboard() {
-
-        activate(AppState.SCOREBOARD, () -> scoreboardScreen.showScreen(scores.top(), lastRegisteredScore));
+        activate(AppState.SCOREBOARD, () -> {
+            scoreboardScreen.showScreen(scores.top(), lastRegisteredScore);
+            scoreboardScreen.showMessage(persistenceError);
+        });
     }
 
     /** 기존 종료 화면 미리보기. 실제 게임오버 후처리는 finishGame에서만 수행한다. */
@@ -301,17 +304,33 @@ public class AppController {
         awaitingScoreName = false;
         showScoreboard();
     }
-    /** 기록만 초기화한다. */
-    public void resetScores() {
+    /** 저장소와 화면의 기록을 함께 초기화한다. 실패하면 기존 기록을 보존하고 false를 반환한다. */
+    public boolean resetScoreboard() {
         requireEdt();
-        if (state == AppState.EXIT) return;
-        if (!resolvePendingScore()) return;
+        if (state == AppState.EXIT) return false;
+        if (!resolvePendingScore()) {
+            showScoreResetMessage("기록 저장에 실패하여 초기화하지 못했습니다: " + persistenceError);
+            return false;
+        }
         try {
             scores.reset();
             persistenceError = null;
             lastRegisteredScore = null;
-            if (state == AppState.SCOREBOARD) showScoreboard();
-        } catch (UncheckedIOException ex) { persistenceError = ex.getMessage(); }
+            scoreboardScreen.clearRecords();
+            showScoreResetMessage("기록을 초기화했습니다.");
+            return true;
+        } catch (UncheckedIOException ex) {
+            persistenceError = ex.getMessage();
+            showScoreResetMessage("기록을 초기화하지 못했습니다: " + persistenceError);
+            return false;
+        }
+    }
+
+    /** 기존 연결부와의 호환용 진입점. 결과 확인이 필요하면 resetScoreboard를 사용한다. */
+    public void resetScores() { resetScoreboard(); }
+
+    private void showScoreResetMessage(String message) {
+        settingsScreen.showMessage(message); scoreboardScreen.showMessage(message);
     }
     /** 설정 서비스가 변경을 처리한 뒤 서비스의 현재 값을 관련 모듈에 전달 */
     public void updateSettings(GameSettings next) {

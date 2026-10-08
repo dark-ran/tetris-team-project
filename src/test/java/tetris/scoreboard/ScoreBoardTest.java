@@ -150,6 +150,16 @@ class ScoreBoardTest {
         assertThrows(UncheckedIOException.class, preserved::reset);
         assertEquals(50, preserved.highScore());
     }
+    @Test void resetClearsTheDamagedFileAndItsLoadWarning() throws Exception {
+        Path file = directory.resolve("damaged-scores.tsv");
+        Files.writeString(file, "invalid header");
+        ScoreBoardService service = new ScoreBoardService(new ScoreRepository(file));
+        assertNotNull(service.loadWarning());
+        service.reset();
+        assertNull(service.loadWarning()); assertTrue(service.top().isEmpty());
+        assertEquals(0, service.highScore()); assertFalse(Files.exists(file));
+    }
+
     @Test void validatesNamesAndScores() {
         assertThrows(NullPointerException.class, () -> new ScoreEntry(null, 0));
         assertThrows(IllegalArgumentException.class, () -> new ScoreEntry("   ", 0));

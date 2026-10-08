@@ -101,7 +101,7 @@ public class ScoreRepository {
     /**최대 3번(MAX_ATTEMPTS)까지 시도 */
     public void clear() {
         for (int attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
-            try { Files.deleteIfExists(path); return; }
+            try { Files.deleteIfExists(path); loadWarning = null; return; }
             catch (IOException ex) {
                 if (attempt == MAX_ATTEMPTS)
                     throw new UncheckedIOException("Could not clear scores after " + MAX_ATTEMPTS + " attempts", ex);

@@ -91,6 +91,22 @@ class ReviewWindowTest {
                 assertEquals(AppState.GAME, app.state());
                 assertEquals(0, app.snapshot().game().score());
                 assertEquals(GamePhase.RUNNING, app.snapshot().game().phase());
+                for (int i = 0; i < 100 && app.state() == AppState.GAME; i++) app.handleAction(GameAction.HARD_DROP);
+                app.registerScore("초기화 테스트");
+                assertEquals(AppState.SCOREBOARD, app.state());
+                JTable scores = visible(app.view()).filter(JTable.class::isInstance).map(JTable.class::cast).findFirst().orElseThrow();
+                assertEquals(1, scores.getRowCount());
+                button(app, "기록 초기화").doClick(0);
+                assertEquals(0, scores.getRowCount()); assertEquals(-1, scores.getSelectedRow());
+                assertEquals(0, app.snapshot().highScore()); assertNull(app.snapshot().lastRegisteredScore());
+                assertNull(app.snapshot().persistenceError());
+                window.validate();
+                try {
+                    BufferedImage image = new BufferedImage(window.getWidth(), window.getHeight(), BufferedImage.TYPE_INT_RGB);
+                    Graphics2D graphics = image.createGraphics();
+                    try { window.paint(graphics); } finally { graphics.dispose(); }
+                    ImageIO.write(image, "png", Path.of("build", "review-scoreboard-reset.png").toFile());
+                } catch (java.io.IOException ex) { throw new java.io.UncheckedIOException(ex); }
                 window.dispatchEvent(new WindowEvent(window, WindowEvent.WINDOW_CLOSING));
                 assertEquals(AppState.EXIT, app.state());
                 assertFalse(window.isDisplayable());
