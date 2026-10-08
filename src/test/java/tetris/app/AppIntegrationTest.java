@@ -178,7 +178,45 @@ class AppIntegrationTest {
             assertFalse(app.snapshot().awaitingScoreName());
         });
     }
-    @Test void lineClearThresholdUpdatesLevelIntervalAndNextDropBonus() throws Exception {
+    @Test void spawningWithoutClearingUpdatesIntervalAndOnlySubsequentDropsGetTheBonus() throws Exception {
+        SwingUtilities.invokeAndWait(() -> {
+            GameEngine engine = new GameEngine(new Random(0) {
+                @Override public int nextInt(int bound) { return PieceType.O.ordinal(); }
+            });
+            Loop loop = new Loop();
+            List<Long> intervals = new ArrayList<>();
+            AppController app = new AppController(() -> {}, engine, loop, intervals::add,
+                    ignored -> {}, new ScoreBoardService(new ScoreRepository(directory.resolve("spawn-scores"))),
+                    null, ignored -> {});
+            app.startGame();
+            for (int piece = 0; piece < 8; piece++) placeO(app, engine, (piece % 4) * 2);
+            assertEquals(9, engine.state().spawnedPieces());
+            assertEquals(0, engine.state().totalClearedRows());
+            assertEquals(List.of(1000L), intervals, "Moving and locking below the threshold must not restart gravity");
+            long before = engine.state().score();
+            placeO(app, engine, 0);
+            assertEquals(14, engine.state().score() - before, "The triggering block falls at the old speed");
+            assertEquals(10, engine.state().spawnedPieces());
+            assertEquals(0, engine.state().totalClearedRows());
+            assertEquals(2, engine.state().level());
+            assertEquals(900, app.snapshot().gravityIntervalMillis());
+            assertEquals(List.of(1000L, 900L), intervals);
+            app.handleAction(GameAction.DOWN);
+            assertEquals(before + 16, engine.state().score());
+            assertEquals(List.of(1000L, 900L), intervals);
+            app.showGameMenu();
+            app.handleAction(GameAction.TICK);
+            assertEquals(before + 16, engine.state().score());
+            app.resumeGame();
+            assertEquals(900, app.snapshot().gravityIntervalMillis());
+            app.startGame();
+            assertEquals(1, engine.state().spawnedPieces());
+            assertEquals(1, engine.state().level());
+            assertEquals(1000, app.snapshot().gravityIntervalMillis());
+            app.exit();
+        });
+    }
+    @Test void clearedRowsAndSpawnsUpdateLevelIntervalAndNextDropBonus() throws Exception {
         SwingUtilities.invokeAndWait(() -> {
             Random onlyO = new Random(0) {
                 @Override public int nextInt(int bound) { return PieceType.O.ordinal(); }
@@ -190,25 +228,27 @@ class AppIntegrationTest {
             app.startGame();
             for (int piece = 0; piece < 25; piece++) {
                 // O 블록 다섯 개를 두 칸씩 나란히 놓으면 두 줄이 동시에 삭제된다.
-                int target = (piece % 5) * 2;
-                int moves = Math.abs(target - engine.state().currentColumn());
-                GameAction direction = target < engine.state().currentColumn() ? GameAction.LEFT : GameAction.RIGHT;
-                for (int i = 0; i < moves; i++) app.handleAction(direction);
-                app.handleAction(GameAction.HARD_DROP);
+                placeO(app, engine, (piece % 5) * 2);
             }
             assertEquals(10, engine.state().totalClearedRows());
             assertEquals(26, engine.state().spawnedPieces());
-            assertEquals(1950, engine.state().score(), "450 낙하 + 5회 두 줄 삭제 보너스 1500");
-            assertEquals(2, engine.state().level());
-            assertEquals(900, loop.interval);
-            assertEquals(2, renders.getLast().level());
+            assertEquals(2238, engine.state().score(), "450 낙하 + 가속 후 16개 × 18칸 보너스 288 + 줄 삭제 1500");
+            assertEquals(3, engine.state().level());
+            assertEquals(800, loop.interval);
+            assertEquals(3, renders.getLast().level());
             app.handleAction(GameAction.DOWN);
-            assertEquals(1952, engine.state().score());
+            assertEquals(2240, engine.state().score());
             app.startGame();
             assertEquals(1000, loop.interval);
             assertEquals(1, engine.state().level());
             app.exit();
         });
+    }
+    private static void placeO(AppController app, GameEngine engine, int target) {
+        int moves = Math.abs(target - engine.state().currentColumn());
+        GameAction direction = target < engine.state().currentColumn() ? GameAction.LEFT : GameAction.RIGHT;
+        for (int i = 0; i < moves; i++) app.handleAction(direction);
+        app.handleAction(GameAction.HARD_DROP);
     }
     @Test void settingsAreLoadedSavedAppliedAndResetWithoutClearingRankings() throws Exception {
         SwingUtilities.invokeAndWait(() -> {

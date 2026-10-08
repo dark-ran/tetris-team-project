@@ -7,7 +7,9 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicInteger;
 import javax.swing.SwingUtilities;
+import javax.swing.Timer;
 import org.junit.jupiter.api.Test;
 
 /** 실제 Swing 타이머의 스레드·간격 변경·정지·재개를 검증한다. */
@@ -86,5 +88,28 @@ class GameLoopTest {
                     () -> loop.setIntervalMillis((long) Integer.MAX_VALUE + 1));
             loop.stop();
         });
+    }
+
+    @Test void acceleratedTimerKeepsFallingDuringRepeatedUnchangedIntervalRequests() throws Exception {
+        GameLoop loop = new GameLoop();
+        CountDownLatch ticks = new CountDownLatch(3);
+        AtomicInteger requests = new AtomicInteger();
+        Timer input = new Timer(10, event -> {
+            requests.incrementAndGet();
+            loop.setIntervalMillis(100);
+        });
+        try {
+            SwingUtilities.invokeAndWait(() -> {
+                loop.setTickListener(ticks::countDown);
+                loop.start();
+                loop.setIntervalMillis(100); // 이미 실행 중인 1초 타이머에도 새 간격을 반영한다.
+                input.start();
+            });
+            assertTrue(ticks.await(2, TimeUnit.SECONDS),
+                    "100ms gravity must produce three ticks even while inputs repeatedly request the same interval");
+            assertTrue(requests.get() >= 3);
+        } finally {
+            SwingUtilities.invokeAndWait(() -> { input.stop(); loop.stop(); });
+        }
     }
 }
