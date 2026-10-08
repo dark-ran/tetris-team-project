@@ -4,6 +4,10 @@ import java.awt.BorderLayout;
 import java.awt.Font;
 import java.awt.GridBagLayout;
 import java.awt.GridLayout;
+import java.util.Objects;
+import java.util.function.BooleanSupplier;
+import java.util.function.Consumer;
+import java.util.function.Supplier;
 import javax.swing.JButton;
 import javax.swing.JLabel;
 import javax.swing.JPanel;
@@ -19,6 +23,21 @@ public class GameOverScreen extends JPanel {
 
     private final JLabel scoreLabel = new JLabel();
     private final JButton restartButton;
+    private Consumer<String> onRegister;
+    private Runnable onSkip;
+    private BooleanSupplier onRetrySave;
+    private Supplier<String> saveError;
+
+    public void setOnRegister(Consumer<String> callback) { onRegister = Objects.requireNonNull(callback); }
+    public void setOnSkip(Runnable callback) { onSkip = Objects.requireNonNull(callback); }
+    public void setOnRetrySave(BooleanSupplier callback) { onRetrySave = Objects.requireNonNull(callback); }
+    public void setSaveErrorSupplier(Supplier<String> supplier) { saveError = Objects.requireNonNull(supplier); }
+
+    // TODO: UI에서 위 콜백을 호출하고 입력 예외·저장 오류를 표시한다.
+    public void showScreen(long score, boolean canRegister) {
+        showScreen(score);
+        // TODO: canRegister일 때만 이름 입력을 표시한다. 이 메서드는 아직 입력 UI를 만들지 않는다.
+    }
 
     public GameOverScreen(Runnable onRestart, Runnable onScoreboard, Runnable onBack, Runnable onExit) {
         ScreenSupport.prepareScreen(this, "게임 종료",

@@ -7,11 +7,14 @@ import java.awt.Dimension;
 import java.awt.Font;
 import java.awt.GridBagLayout;
 import java.util.List;
+import java.util.Objects;
+import java.util.function.Consumer;
 import javax.swing.BorderFactory;
 import javax.swing.JButton;
 import javax.swing.JLabel;
 import javax.swing.JPanel;
 import javax.swing.JSeparator;
+import tetris.settings.GameSettings;
 
 /**
  * 설정 항목의 자리. 저장과 실제 적용은 후속 담당 작업에서 연결한다.
@@ -27,6 +30,15 @@ public class SettingsScreen extends JPanel {
             new SettingItem("초기화", "설정과 기록을 각각 처리할 예정", AppTheme.RED));
 
     private final JButton backButton;
+    private Consumer<GameSettings> onSave;
+    private Runnable onRestoreDefaults;
+    private Runnable onResetScores;
+
+    public void setOnSave(Consumer<GameSettings> callback) { onSave = Objects.requireNonNull(callback); }
+    public void setOnRestoreDefaults(Runnable callback) { onRestoreDefaults = Objects.requireNonNull(callback); }
+    public void setOnResetScores(Runnable callback) { onResetScores = Objects.requireNonNull(callback); }
+
+    // TODO: UI 버튼에서 위 콜백을 호출한다. 입력 컨트롤과 버튼 동작은 아직 미구현이다.
 
     public SettingsScreen(Runnable onBack) {
         ScreenSupport.prepareScreen(this, "설정",
