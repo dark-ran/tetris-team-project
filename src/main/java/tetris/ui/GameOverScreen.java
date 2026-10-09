@@ -10,6 +10,7 @@ import java.util.function.Consumer;
 import java.util.function.BooleanSupplier;
 import java.util.function.Supplier;
 import javax.swing.JTextField;
+import javax.swing.JTextArea;
 import javax.swing.Box;
 import javax.swing.JButton;
 import javax.swing.JLabel;
@@ -29,7 +30,7 @@ public class GameOverScreen extends JPanel {
     private final JButton restartButton;
     private final JPanel registration = ScreenSupport.verticalPanel();
     private final JTextField nameField = new JTextField(20);
-    private final JLabel errorLabel = new JLabel(" ");
+    private final JTextArea errorLabel = new JTextArea(" ", 2, 0);
     private Consumer<String> onRegister;
     private Runnable onSkip;
     private BooleanSupplier onRetry;
@@ -58,7 +59,12 @@ public class GameOverScreen extends JPanel {
         JLabel guide = ScreenSupport.mutedLabel("Space  다시 시작     ·     Esc  시작 메뉴");
         guide.setHorizontalAlignment(JLabel.CENTER);
         result.add(guide, BorderLayout.SOUTH);
-        registration.add(new JLabel("이름을 입력해 기록을 등록하세요 (1~20자)."));
+        JLabel nameGuide = new JLabel("이름을 입력해 기록을 등록하세요 (1~20자).");
+        nameGuide.setAlignmentX(0.5f);
+        nameGuide.setMaximumSize(new java.awt.Dimension(
+                Integer.MAX_VALUE, nameGuide.getPreferredSize().height));
+        nameGuide.setHorizontalAlignment(JLabel.LEFT);
+        registration.add(nameGuide);
         registration.add(Box.createVerticalStrut(10)); registration.add(nameField);
         JButton register = ScreenSupport.primaryButton("기록 등록", () -> {
             try { if (onRegister != null) onRegister.accept(nameField.getText()); showSaveError(saveError.get()); }
@@ -66,7 +72,17 @@ public class GameOverScreen extends JPanel {
         });
         JButton skip = ScreenSupport.button("등록 건너뛰기", () -> { if (onSkip != null) onSkip.run(); });
         JButton retry = ScreenSupport.button("저장 재시도", () -> { if (onRetry != null) onRetry.getAsBoolean(); showSaveError(saveError.get()); });
-        registration.add(ScreenSupport.actionRow(register, skip, retry)); errorLabel.setForeground(AppTheme.YELLOW);
+        registration.add(ScreenSupport.actionRow(register, skip, retry));
+        errorLabel.setFont(nameGuide.getFont());
+        errorLabel.setForeground(AppTheme.YELLOW);
+        errorLabel.setOpaque(false);
+        errorLabel.setEditable(false);
+        errorLabel.setFocusable(false);
+        errorLabel.setLineWrap(true);
+        errorLabel.setWrapStyleWord(true);
+        errorLabel.setAlignmentX(0.5f);
+        errorLabel.setMaximumSize(new java.awt.Dimension(
+                Integer.MAX_VALUE, errorLabel.getPreferredSize().height));
         registration.add(errorLabel); registration.setVisible(false); result.add(registration, BorderLayout.CENTER);
         JPanel center = ScreenSupport.transparentPanel(new GridBagLayout());
         center.add(result);

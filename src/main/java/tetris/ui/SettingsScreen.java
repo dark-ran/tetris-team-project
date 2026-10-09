@@ -35,14 +35,14 @@ public class SettingsScreen extends JPanel {
         for (int i = 0; i < actions.length; i++) {
             String action = actions[i]; keys.put(action, defaults[i]);
             boolean[] capturing = {false};
-            JButton key = ScreenSupport.button(KeyEvent.getKeyText(defaults[i]), () -> { capturing[0] = true; feedback.setText("지정할 키를 누르세요. Esc는 사용할 수 없습니다."); });
+            JButton key = ScreenSupport.button(SwingKeyBindings.keyText(defaults[i]), () -> { capturing[0] = true; feedback.setText("지정할 키를 누르세요. Esc는 사용할 수 없습니다."); });
             key.addKeyListener(new KeyAdapter() {
                 @Override public void keyPressed(KeyEvent event) {
                     if (!capturing[0]) return;
                     capturing[0] = false;
                     event.consume();
                     if (event.getKeyCode() == KeyEvent.VK_ESCAPE) { feedback.setText("Esc는 게임 메뉴 전용 키입니다."); return; }
-                    keys.put(action, event.getKeyCode()); key.setText(KeyEvent.getKeyText(event.getKeyCode())); feedback.setText("저장하면 새 조작 키가 적용됩니다.");
+                    keys.put(action, event.getKeyCode()); key.setText(SwingKeyBindings.keyText(event.getKeyCode())); feedback.setText("저장하면 새 조작 키가 적용됩니다.");
                 }
             });
             keyButtons.put(action, key); fields.add(new JLabel(names.get(action))); fields.add(key);
@@ -64,7 +64,7 @@ public class SettingsScreen extends JPanel {
     public Values values() { return new Values(preset.getSelectedIndex(), colorBlind.isSelected(), keys); }
     public void showValues(Values current) {
         preset.setSelectedIndex(current.preset()); colorBlind.setSelected(current.colorBlind());
-        current.keys().forEach((action, code) -> { if (keyButtons.containsKey(action)) { keys.put(action, code); keyButtons.get(action).setText(KeyEvent.getKeyText(code)); } });
+        current.keys().forEach((action, code) -> { if (keyButtons.containsKey(action)) { keys.put(action, code); keyButtons.get(action).setText(SwingKeyBindings.keyText(code)); } });
         feedback.setText(" ");
     }
     public void showSettings(GameSettings current) { showValues(new Values(current.windowSizePreset(), current.colorBlindMode(), current.keyBindings())); }
