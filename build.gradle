@@ -150,17 +150,12 @@ tasks.register('gameplayPerformanceTest', Test) {
 // Verify the assembled app's headless integration flow in normal builds and CI.
 tasks.named('check') { dependsOn tasks.named('reviewIntegrationTest') }
 
-sourceSets {
-    importCheck { java.srcDir 'tools/import-check' }
-}
-sourceSets.test.compileClasspath += sourceSets.importCheck.output
-sourceSets.test.runtimeClasspath += sourceSets.importCheck.output
 tasks.register('verifyImports', JavaExec) {
     description = 'Rejects unused imports in production, unit and review integration sources.'
     group = 'verification'
-    dependsOn tasks.named('importCheckClasses')
+    dependsOn tasks.named('testClasses')
     javaLauncher = javaToolchains.launcherFor(java.toolchain)
-    classpath = sourceSets.importCheck.runtimeClasspath
+    classpath = sourceSets.test.runtimeClasspath
     mainClass = 'tetris.quality.ImportAudit'
     args file('src').absolutePath,
             (sourceSets.test.compileClasspath + sourceSets.reviewIntegration.compileClasspath).asPath
