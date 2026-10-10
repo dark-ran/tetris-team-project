@@ -101,3 +101,63 @@ def gameEngineCoverageVerification = tasks.register(
 }
 
 check.dependsOn gameEngineCoverageVerification
+
+// Run after combining the settings, Swing UI and app-control branches.
+sourceSets {
+    reviewIntegration {
+        compileClasspath += sourceSets.main.output
+        runtimeClasspath += sourceSets.main.output
+    }
+}
+configurations {
+    reviewIntegrationImplementation.extendsFrom testImplementation
+    reviewIntegrationRuntimeOnly.extendsFrom testRuntimeOnly
+}
+tasks.register('reviewIntegrationTest', Test) {
+    description = 'Verifies the combined PR #7, #8 and #11 menu, settings and restart flow.'
+    group = 'verification'
+    testClassesDirs = sourceSets.reviewIntegration.output.classesDirs
+    classpath = sourceSets.reviewIntegration.runtimeClasspath
+    useJUnitPlatform()
+    systemProperty 'java.awt.headless', 'true'
+}
+tasks.register('reviewWindowTest', Test) {
+    description = 'Checks real window focus and Swing key event handling after combining the three PRs.'
+    group = 'verification'
+    testClassesDirs = sourceSets.reviewIntegration.output.classesDirs
+    classpath = sourceSets.reviewIntegration.runtimeClasspath
+    useJUnitPlatform()
+    include '**/ReviewWindow*Test.class'
+    systemProperty 'java.awt.headless', 'false'
+}
+tasks.named('reviewIntegrationTest') {
+    exclude '**/ReviewWindow*Test.class'
+    exclude '**/GameplayPerformanceTest.class'
+}
+
+// Opt-in local measurements: keep machine-dependent performance budgets out of regular CI.
+tasks.register('gameplayPerformanceTest', Test) {
+    description = 'Measures gameplay input, snapshots and painting across sizes with a 256 MiB heap.'
+    group = 'verification'
+    testClassesDirs = sourceSets.reviewIntegration.output.classesDirs
+    classpath = sourceSets.reviewIntegration.runtimeClasspath
+    useJUnitPlatform()
+    include '**/GameplayPerformanceTest.class'
+    systemProperty 'java.awt.headless', 'true'
+    maxHeapSize = '256m'
+}
+
+// Verify the assembled app's headless integration flow in normal builds and CI.
+tasks.named('check') { dependsOn tasks.named('reviewIntegrationTest') }
+
+tasks.register('verifyImports', JavaExec) {
+    description = 'Rejects unused imports in production, unit and review integration sources.'
+    group = 'verification'
+    dependsOn tasks.named('testClasses')
+    javaLauncher = javaToolchains.launcherFor(java.toolchain)
+    classpath = sourceSets.test.runtimeClasspath
+    mainClass = 'tetris.quality.ImportAudit'
+    args file('src').absolutePath,
+            (sourceSets.test.compileClasspath + sourceSets.reviewIntegration.compileClasspath).asPath
+}
+tasks.named('check') { dependsOn tasks.named('verifyImports') }
