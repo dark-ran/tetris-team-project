@@ -16,6 +16,16 @@ final class SwingKeyBindings {
     private SwingKeyBindings() {
     }
 
+    static String keyText(int keyCode) {
+        return switch (keyCode) {
+            case KeyEvent.VK_LEFT -> "←";
+            case KeyEvent.VK_RIGHT -> "→";
+            case KeyEvent.VK_UP -> "↑";
+            case KeyEvent.VK_DOWN -> "↓";
+            default -> KeyEvent.getKeyText(keyCode);
+        };
+    }
+
     static void activateButtonWithEnter(JButton button) {
         bind(button, JComponent.WHEN_FOCUSED, KeyEvent.VK_ENTER,
                 "activate-button", () -> button.doClick(0));

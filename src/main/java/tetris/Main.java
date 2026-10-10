@@ -13,7 +13,7 @@ public class Main {
     public static void main(String[] args) {
         AppTheme.install();
         SwingUtilities.invokeLater(() -> {
-            JFrame window = new JFrame("Tetris · Swing Skeleton");
+            JFrame window = new JFrame("Tetris");
             AppController app = new AppController(window::dispose);
             window.setDefaultCloseOperation(JFrame.DO_NOTHING_ON_CLOSE);
             window.addWindowListener(new WindowAdapter() {

@@ -17,6 +17,7 @@
 | 입력란 스타일·크기 | `configureNameField` |
 | 결과 카드 | `createResultCard` |
 | 이름 입력과 오류 영역 | `createRegistrationForm` |
+| 줄바꿈 오류 영역의 스타일·폭 | `configureRegistrationFeedback` |
 | 등록·건너뛰기·재시도 버튼 | `createRegistrationActions` |
 | 화면 하단 이동 버튼 | `createNavigation` |
 | 등록·재시도 처리 | `registerName`, `skipRegistration`, `retryRegistration` |
@@ -44,3 +45,6 @@ Java 21 / macOS에서 다음 명령으로 검증한다.
 
 사용자 요청에 따라 이 작업은 먼저 별도 로컬 커밋으로 기록한다.
 스코어보드 초기화 연결은 이후 별도 작업으로 진행하며, 원격에는 push하지 않는다.
+
+2026-10-10 [PR #14 원격 UI 수정 통합](pr14-ui-sync.md)에서 안내 문구와 오류 메시지 잘림 수정을 함께 반영했다.
+입력란 크기와 메서드 분리는 유지하며, 세 크기의 긴 오류 표시와 실제 창 검사를 추가 검증했다.

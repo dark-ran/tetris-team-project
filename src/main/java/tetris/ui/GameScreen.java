@@ -99,7 +99,7 @@ public class GameScreen extends JPanel {
                 case QUIT -> "프로그램 종료"; default -> "";
             };
             controls.add(Box.createVerticalStrut(4));
-            controls.add(new JLabel("[" + KeyEvent.getKeyText(code) + "]  " + label));
+            controls.add(new JLabel("[" + SwingKeyBindings.keyText(code) + "]  " + label));
         });
         controls.add(Box.createVerticalStrut(8));
         controls.add(ScreenSupport.mutedLabel("[Esc]  게임 메뉴"));

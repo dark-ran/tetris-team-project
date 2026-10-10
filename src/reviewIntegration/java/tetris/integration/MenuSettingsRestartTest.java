@@ -53,7 +53,7 @@ class MenuSettingsRestartTest {
                 JCheckBox accessible = visible(app.view()).filter(JCheckBox.class::isInstance)
                         .map(JCheckBox.class::cast).findFirst().orElseThrow();
                 accessible.setSelected(true);
-                JButton left = button(app, KeyEvent.getKeyText(KeyEvent.VK_LEFT));
+                JButton left = button(app, "←");
                 left.doClick(0);
                 KeyEvent input = new KeyEvent(left, KeyEvent.KEY_PRESSED, System.currentTimeMillis(), 0, KeyEvent.VK_A, 'a');
                 for (KeyListener listener : left.getKeyListeners()) listener.keyPressed(input);

@@ -44,6 +44,9 @@ GUI를 사용할 수 있는 환경에서는 `./gradlew reviewWindowTest`로 실�
 컴퓨터 제어 도구로 확인한 결과 Mac이 잠겨 있어 창의 포커스 검증은 잠금 해제 후 재확인이 필요하다.
 따라서 전체 실제 창 테스트 통과로 표시하지 않는다. 새 배치 검사 3개와 크기 유지·취소 검사 5개는 통과했다.
 
+2026-10-10에는 [PR #14 원격 UI 수정 통합](pr14-ui-sync.md) 후 실제 창 검사 9개를 다시 실행해 모두 통과했다.
+첫 보드 포커스·이름 입력·메뉴 복귀·재시작 검증도 완료했으며, 위 실패 기록은 이전 실행 결과로 보존한다.
+
 크기 3개 × 색각 모드 5개 이미지: `build/review-gameplay/preset-<0~2>-<mode>.png`.
 테스트 보고서: `build/reports/tests/reviewWindowTest/index.html`.
 현재 검증은 로컬 macOS 결과이며 원격 CI·Windows·과제 최소 사양 기기는 별도 검증 대상이다.

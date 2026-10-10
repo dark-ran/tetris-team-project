@@ -8,6 +8,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 import javax.swing.JButton;
 import javax.swing.JLabel;
+import javax.swing.JTextArea;
 import javax.swing.JTextField;
 import javax.swing.SwingUtilities;
 import org.junit.jupiter.api.Test;
@@ -16,6 +17,45 @@ import org.junit.jupiter.params.provider.ValueSource;
 import tetris.settings.GameSettings;
 
 class GameOverRegistrationTest {
+    @ParameterizedTest @ValueSource(ints = {0, 1, 2})
+    void guidanceAndWrappedErrorsStayInsideTheCompactRegistrationCard(int preset) throws Exception {
+        SwingUtilities.invokeAndWait(() -> {
+            GameOverScreen screen = new GameOverScreen(() -> {}, () -> {}, () -> {}, () -> {});
+            screen.showScreen(Long.MAX_VALUE, true);
+            Dimension size = GameSettings.presetDimension(preset);
+            screen.setSize(size.width, size.height - 40); GameMenuUiTest.layout(screen);
+            JTextField field = nameField(screen);
+            JLabel guide = GameMenuUiTest.tree(screen).filter(JLabel.class::isInstance).map(JLabel.class::cast)
+                    .filter(label -> label.getText().contains("1~20자")).findFirst().orElseThrow();
+            assertTrue(guide.getFontMetrics(guide.getFont()).stringWidth(guide.getText())
+                    <= guide.getWidth() - guide.getInsets().left - guide.getInsets().right);
+            Rectangle guideBounds = SwingUtilities.convertRectangle(guide.getParent(), guide.getBounds(), screen);
+            Rectangle fieldBounds = SwingUtilities.convertRectangle(field.getParent(), field.getBounds(), screen);
+            assertEquals(fieldBounds.getCenterX(), guideBounds.getCenterX(), 1.0);
+            JTextArea error = GameMenuUiTest.tree(screen).filter(JTextArea.class::isInstance)
+                    .map(JTextArea.class::cast).findFirst().orElseThrow();
+            int cardWidth = guide.getParent().getWidth();
+            for (String message : new String[] {
+                    "name must contain 1 to 20 characters without controls",
+                    "기록을 저장하지 못했습니다. 저장 위치에 쓰기 권한이 있는지 확인한 뒤 다시 시도해 주세요."}) {
+                screen.showSaveError(message); GameMenuUiTest.layout(screen); GameMenuUiTest.paint(screen);
+                assertEquals(cardWidth, guide.getParent().getWidth(), "Long feedback must not widen the input form");
+                assertEquals(message, error.getText());
+                assertFalse(error.isEditable()); assertFalse(error.isFocusable());
+                Rectangle bounds = SwingUtilities.convertRectangle(error.getParent(), error.getBounds(), screen);
+                assertTrue(new Rectangle(0, 0, screen.getWidth(), screen.getHeight()).contains(bounds));
+                try {
+                    for (int offset = 0; offset <= message.length(); offset++) {
+                        var glyph = error.modelToView2D(offset);
+                        assertNotNull(glyph);
+                        assertTrue(glyph.getMinX() >= 0 && glyph.getMaxX() <= error.getWidth(), "No horizontal clipping");
+                        assertTrue(glyph.getMaxY() <= error.getHeight(), "Every wrapped line must remain visible");
+                    }
+                } catch (javax.swing.text.BadLocationException ex) { throw new AssertionError(ex); }
+            }
+        });
+    }
+
     @ParameterizedTest @ValueSource(ints = {0, 1, 2})
     void registrationFieldStaysReadableAndCompactAtEveryWindowSize(int preset) throws Exception {
         SwingUtilities.invokeAndWait(() -> {
@@ -86,7 +126,7 @@ class GameOverRegistrationTest {
                 .filter(button -> button.getText().equals(text)).findFirst().orElseThrow();
     }
     private static void assertMessage(GameOverScreen screen, String text) {
-        assertTrue(GameMenuUiTest.tree(screen).filter(JLabel.class::isInstance).map(JLabel.class::cast)
+        assertTrue(GameMenuUiTest.tree(screen).filter(JTextArea.class::isInstance).map(JTextArea.class::cast)
                 .anyMatch(label -> label.getText().equals(text)));
     }
 }

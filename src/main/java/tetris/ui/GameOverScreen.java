@@ -18,6 +18,7 @@ import javax.swing.JButton;
 import javax.swing.JComponent;
 import javax.swing.JLabel;
 import javax.swing.JPanel;
+import javax.swing.JTextArea;
 import javax.swing.JTextField;
 import javax.swing.KeyStroke;
 
@@ -30,7 +31,7 @@ public class GameOverScreen extends JPanel {
     private final JButton restartButton;
     private final JPanel registration = ScreenSupport.transparentPanel(new BorderLayout(0, 12));
     private final JTextField nameField = new JTextField();
-    private final JLabel errorLabel = new JLabel(" ", JLabel.CENTER);
+    private final JTextArea errorLabel = new JTextArea(" ", 2, 0);
     private Consumer<String> onRegister;
     private Runnable onSkip;
     private BooleanSupplier onRetry;
@@ -76,16 +77,31 @@ public class GameOverScreen extends JPanel {
     }
 
     private JPanel createRegistrationForm() {
-        registration.add(new JLabel("이름을 입력해 기록을 등록하세요 (1~20자).", JLabel.CENTER), BorderLayout.NORTH);
+        JLabel nameGuide = new JLabel("이름을 입력해 기록을 등록하세요 (1~20자).", JLabel.CENTER);
+        registration.add(nameGuide, BorderLayout.NORTH);
         // The field keeps its preferred height even when the result card has extra space.
         JPanel editor = ScreenSupport.transparentPanel(new GridBagLayout());
         editor.add(nameField); registration.add(editor, BorderLayout.CENTER);
         JPanel feedback = ScreenSupport.transparentPanel(new BorderLayout(0, 10));
         feedback.add(createRegistrationActions(), BorderLayout.NORTH);
-        errorLabel.setForeground(AppTheme.YELLOW); feedback.add(errorLabel, BorderLayout.SOUTH);
+        configureRegistrationFeedback(nameGuide);
+        feedback.add(errorLabel, BorderLayout.SOUTH);
         registration.add(feedback, BorderLayout.SOUTH);
         registration.setVisible(false);
         return registration;
+    }
+
+    private void configureRegistrationFeedback(JLabel guide) {
+        errorLabel.setFont(guide.getFont());
+        errorLabel.setForeground(AppTheme.YELLOW);
+        errorLabel.setOpaque(false);
+        errorLabel.setEditable(false);
+        errorLabel.setFocusable(false);
+        errorLabel.setLineWrap(true);
+        errorLabel.setWrapStyleWord(true);
+        // Keep long feedback inside the compact card instead of widening the form.
+        int columnWidth = errorLabel.getFontMetrics(errorLabel.getFont()).charWidth('m');
+        errorLabel.setColumns(nameField.getPreferredSize().width / Math.max(1, columnWidth));
     }
 
     private JPanel createRegistrationActions() {
@@ -149,6 +165,7 @@ public class GameOverScreen extends JPanel {
     public void showSaveError(String message) {
         errorLabel.setText(message == null ? " " : message);
         errorLabel.setToolTipText(message);
+        revalidate(); repaint();
     }
 
     /** 게임 미연결 상태의 미리보기. 실제 점수 대신 미측정을 표시한다. */

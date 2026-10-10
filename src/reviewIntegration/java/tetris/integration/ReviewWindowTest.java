@@ -71,6 +71,18 @@ class ReviewWindowTest {
                 JTextField name = nameField(app);
                 assertTrue(name.getHeight() <= name.getFontMetrics(name.getFont()).getHeight() * 2);
                 assertTrue(name.getFont().getSize() >= 18);
+                button(app, "기록 등록").doClick(0);
+                assertEquals(AppState.GAME_OVER, app.state());
+                JTextArea error = visible(app.view()).filter(JTextArea.class::isInstance)
+                        .map(JTextArea.class::cast).findFirst().orElseThrow();
+                assertTrue(error.getText().contains("1 to 20"));
+                window.validate();
+                try {
+                    var lastCharacter = error.modelToView2D(error.getText().length());
+                    assertNotNull(lastCharacter);
+                    assertTrue(lastCharacter.getMaxX() <= error.getWidth());
+                    assertTrue(lastCharacter.getMaxY() <= error.getHeight());
+                } catch (javax.swing.text.BadLocationException ex) { throw new AssertionError(ex); }
                 name.setText("플레이어 1");
                 try {
                     BufferedImage image = new BufferedImage(window.getWidth(), window.getHeight(), BufferedImage.TYPE_INT_RGB);
