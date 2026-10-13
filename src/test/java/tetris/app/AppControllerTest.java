@@ -9,6 +9,7 @@ import java.awt.event.KeyEvent;
 import java.util.Arrays;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Stream;
+import java.nio.file.Path;
 import javax.swing.JButton;
 import javax.swing.JComponent;
 import javax.swing.JLabel;
@@ -16,20 +17,41 @@ import javax.swing.JTable;
 import javax.swing.KeyStroke;
 import javax.swing.SwingUtilities;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
+import tetris.game.GameEngine;
+import tetris.loop.GameLoop;
+import tetris.scoreboard.ScoreBoardService;
+import tetris.scoreboard.ScoreRepository;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.EnumSource;
 
 /** 실제 Swing 패널과 버튼 콜백으로 화면 이동을 검증한다. JFrame이나 가짜 게임 엔진은 만들지 않는다. */
 class AppControllerTest {
+    @TempDir Path directory;
+
+    // 화면 이동 테스트에서는 실제 타이머 대신 루프의 호출 경계만 제공한다.
+    private static final class TestLoop extends GameLoop {
+        @Override public void start() { }
+        @Override public void stop() { }
+        @Override public void pause() { }
+        @Override public void resume() { }
+    }
+
+    private AppController newApp(Runnable onExit) {
+        return new AppController(onExit, new GameEngine(), new TestLoop(), ignored -> {}, ignored -> {},
+                new ScoreBoardService(new ScoreRepository(directory.resolve("scores.tsv"))),
+                null, ignored -> {});
+    }
+
     @Test
     void startGameFinishRestartAndReturnToMenu() throws Exception {
         SwingUtilities.invokeAndWait(() -> {
-            AppController app = new AppController(() -> {});
+            AppController app = newApp(() -> {});
             app.start();
             assertScreen(app, AppState.START_MENU);
             click(app, "게임 시작");
             assertScreen(app, AppState.GAME);
-            click(app, "종료 화면 보기");
+            app.showGameOver();
             assertScreen(app, AppState.GAME_OVER);
             assertLabel(app, "최종 점수: 미측정 (게임 연결 전)");
             click(app, "다시 시작");
@@ -40,20 +62,20 @@ class AppControllerTest {
     }
 
     @Test
-    void settingsAndScoreboardCanBeVisitedRepeatedlyWithoutCallingRepositories() throws Exception {
+    void settingsAndEmptyScoreboardCanBeVisitedRepeatedly() throws Exception {
         SwingUtilities.invokeAndWait(() -> {
-            AppController app = new AppController(() -> {});
+            AppController app = newApp(() -> {});
             app.start();
             for (int visit = 0; visit < 2; visit++) {
                 click(app, "설정");
                 assertScreen(app, AppState.SETTINGS);
-                assertFalse(button(app, "설정 저장 (준비 중)").isEnabled());
-                click(app, "시작 메뉴");
+                assertFalse(button(app, "설정 저장").isEnabled());
+                click(app, "돌아가기");
                 click(app, "스코어보드");
                 assertScreen(app, AppState.SCOREBOARD);
                 JTable table = visibleTree(app.view()).filter(JTable.class::isInstance)
                         .map(JTable.class::cast).findFirst().orElseThrow();
-                assertEquals(0, table.getRowCount(), "미연결 상태에 예시 기록을 넣으면 안 된다");
+                assertEquals(0, table.getRowCount(), "기록이 없는 사용자 저장소는 빈 목록이어야 한다");
                 click(app, "시작 메뉴");
                 assertScreen(app, AppState.START_MENU);
             }
@@ -63,7 +85,7 @@ class AppControllerTest {
     @Test
     void enterActivatesTheSelectedMenuButton() throws Exception {
         SwingUtilities.invokeAndWait(() -> {
-            AppController app = new AppController(() -> {});
+            AppController app = newApp(() -> {});
             app.start();
             invokeKey(button(app, "설정"), JComponent.WHEN_FOCUSED, KeyEvent.VK_ENTER);
             assertScreen(app, AppState.SETTINGS);
@@ -74,12 +96,12 @@ class AppControllerTest {
     @EnumSource(value = AppState.class, names = {"GAME", "SETTINGS", "SCOREBOARD", "GAME_OVER"})
     void escapeReturnsToMenuFromEverySecondaryScreen(AppState screen) throws Exception {
         SwingUtilities.invokeAndWait(() -> {
-            AppController app = new AppController(() -> {});
+            AppController app = newApp(() -> {});
             open(app, screen);
             JComponent activeCard = Arrays.stream(app.view().getComponents())
                     .filter(Component::isVisible).map(JComponent.class::cast).findFirst().orElseThrow();
             invokeKey(activeCard, JComponent.WHEN_ANCESTOR_OF_FOCUSED_COMPONENT, KeyEvent.VK_ESCAPE);
-            assertScreen(app, AppState.START_MENU);
+            assertScreen(app, screen == AppState.GAME ? AppState.GAME_MENU : AppState.START_MENU);
         });
     }
 
@@ -88,7 +110,7 @@ class AppControllerTest {
     void windowClosePathIsIdempotentAndCannotReopenScreens(AppState screen) throws Exception {
         SwingUtilities.invokeAndWait(() -> {
             AtomicInteger closeCount = new AtomicInteger();
-            AppController app = new AppController(closeCount::incrementAndGet);
+            AppController app = newApp(closeCount::incrementAndGet);
             open(app, screen);
             app.exit();
             app.exit();
@@ -103,7 +125,7 @@ class AppControllerTest {
     void exitButtonClosesTheApplication(AppState screen) throws Exception {
         SwingUtilities.invokeAndWait(() -> {
             AtomicInteger closeCount = new AtomicInteger();
-            AppController app = new AppController(closeCount::incrementAndGet);
+            AppController app = newApp(closeCount::incrementAndGet);
             open(app, screen);
             click(app, "프로그램 종료");
             assertEquals(AppState.EXIT, app.state());
@@ -114,12 +136,12 @@ class AppControllerTest {
     @Test
     void realLongScoreIsDisplayedAndClearedForTheNextPreview() throws Exception {
         SwingUtilities.invokeAndWait(() -> {
-            AppController app = new AppController(() -> {});
+            AppController app = newApp(() -> {});
             app.start();
             app.showGameOver(6_000_000_000L);
             assertLabel(app, "최종 점수: 6000000000");
             click(app, "다시 시작");
-            click(app, "종료 화면 보기");
+            app.showGameOver();
             assertLabel(app, "최종 점수: 미측정 (게임 연결 전)");
         });
     }
@@ -129,6 +151,7 @@ class AppControllerTest {
         switch (screen) {
             case START_MENU -> { }
             case GAME -> app.startGame();
+            case GAME_MENU -> { app.startGame(); app.showGameMenu(); }
             case SETTINGS -> app.showSettings();
             case SCOREBOARD -> app.showScoreboard();
             case GAME_OVER -> app.showGameOver();
@@ -144,6 +167,10 @@ class AppControllerTest {
     }
 
     private static void click(AppController app, String text) {
+        if (app.state() == AppState.GAME && (text.equals("프로그램 종료") || text.equals("시작 메뉴"))) {
+            app.showGameMenu();
+            if (text.equals("시작 메뉴")) text = "시작 메뉴로 이동";
+        }
         JButton button = button(app, text);
         assertTrue(button.isEnabled());
         button.doClick(0);

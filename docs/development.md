@@ -51,6 +51,11 @@ JUnit 5와 JaCoCo도 Gradle dependency/plugin 설정을 통해 내려받아 사�
 
 ## 3. 기본 명령
 
+`build`는 미사용 import 검사(`verifyImports`)도 실행한다. 게임 화면 성능은
+`./gradlew gameplayPerformanceTest`로 따로 측정하며, 실제 창은 잠금이 해제된 GUI 환경에서
+`./gradlew reviewWindowTest`로 검사한다. 최신 로컬 결과와 실행 범위는
+[코드 정리·검증 기록](work-items/source-hygiene.md)에서 확인한다.
+
 ### Windows Build + Test
 
 ```powershell

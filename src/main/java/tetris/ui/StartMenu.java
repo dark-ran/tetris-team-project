@@ -35,10 +35,6 @@ public class StartMenu extends JPanel {
 
         JPanel title = ScreenSupport.transparentPanel(new BorderLayout(0, 8));
         title.add(new TetrisWordmark(), BorderLayout.CENTER);
-        JLabel subtitle = ScreenSupport.mutedLabel("20 × 10  /  SWING 입력 스켈레톤");
-        subtitle.setFont(AppTheme.font(Font.BOLD, 13f));
-        subtitle.setHorizontalAlignment(JLabel.CENTER);
-        title.add(subtitle, BorderLayout.SOUTH);
 
         JPanel buttonList = ScreenSupport.transparentPanel(new GridLayout(4, 1, 0, 8));
         buttons.forEach(buttonList::add);

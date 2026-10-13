@@ -1,14 +1,16 @@
 package tetris.scoreboard;
 
-/** 이름과 점수로 구성될 기록 API. 이름 제한은 팀 리뷰가 필요하다. */
-public class ScoreEntry {
-    public String name() {
-        // TODO(Req1): 기록 이름 조회
-        throw new UnsupportedOperationException("TODO: 기록 이름 조회");
-    }
+import java.util.Objects;
 
-    public long score() {
-        // TODO(Req1): 기록 점수 조회
-        throw new UnsupportedOperationException("TODO: 기록 점수 조회");
+/** 불변 기록. 이름은 공백을 제거한 1~20개 Unicode 코드 포인트. */
+public record ScoreEntry(String name, long score) {
+    public ScoreEntry {
+        name = Objects.requireNonNull(name, "name").strip();
+        // emoji처럼 UTF-16 두 칸으로 표현되는 문자도 한 글자로 세고, 파일 구분용 제어 문자는 금지한다.
+        if (name.isEmpty() || name.codePointCount(0, name.length()) > 20
+                || name.codePoints().anyMatch(Character::isISOControl)) {
+            throw new IllegalArgumentException("name must contain 1 to 20 characters without controls");
+        }
+        if (score < 0) throw new IllegalArgumentException("score must be nonnegative");
     }
 }

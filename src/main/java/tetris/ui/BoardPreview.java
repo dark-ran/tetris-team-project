@@ -7,9 +7,22 @@ import java.awt.Rectangle;
 import java.awt.RenderingHints;
 import javax.swing.JPanel;
 import tetris.board.Board;
+import tetris.game.GameState;
+import tetris.piece.Tetromino;
+import tetris.piece.PieceType;
+import tetris.settings.ColorVisionMode;
 
-/** 실제 게임 상태 연결 전 보드 크기와 테두리만 표시하는 화면 구성 요소. */
+
+/** Renders fixed and falling cells from an immutable engine snapshot. */
 final class BoardPreview extends JPanel {
+    private GameState state;
+    private ColorVisionMode mode = ColorVisionMode.NORMAL;
+    private boolean patterns;
+    void setAppearance(ColorVisionMode mode, boolean patterns) {
+        this.mode = java.util.Objects.requireNonNull(mode);
+        this.patterns = patterns;
+        repaint();
+    }
     private static final int MAX_CELL_SIZE = 26;
     private static final int MIN_CELL_SIZE = 16;
     private static final int PADDING = 10;
@@ -27,6 +40,11 @@ final class BoardPreview extends JPanel {
         getAccessibleContext().setAccessibleName("20행 10열 보드");
     }
 
+    void render(GameState state) {
+        this.state = state;
+        repaint();
+    }
+
     /** 현재 컴포넌트 크기에서 실제로 그려지는 바깥 테두리 영역. */
     Rectangle boardBounds() {
         return geometry().outerBounds();
@@ -41,8 +59,76 @@ final class BoardPreview extends JPanel {
             BoardGeometry board = geometry();
             paintBoardFrame(g, board);
             paintEmptyCells(g, board);
+            if (state != null) {
+                paintGameState(g, board, state, mode, patterns);
+            }
         } finally {
             g.dispose();
+        }
+    }
+
+    // GameState의 보드 정보를 확인하고, 빈 칸을 제외한 블록을 화면에 그린다.
+    private static void paintGameState(Graphics2D g, BoardGeometry board, GameState state,
+            ColorVisionMode mode, boolean patterns) {
+        // 고정된 블록을 보드에 그린다.
+        int[][] cells = state.board().snapshot();
+        int cellSize = board.cellSize();
+
+        for (int row = 0; row < Board.ROWS; row++) {
+            for (int column = 0; column < Board.COLUMNS; column++) {
+
+                int value = cells[row][column];
+
+                if (value == Board.EMPTY_CELL) {
+                    continue;
+                }
+
+                int x = board.x() + column * cellSize;
+                int y = board.y() + row * cellSize;
+
+                // 저장된 값에 맞는 블록 종류로 표시한다.
+                PieceType type = PieceType.fromCellValue(value);
+
+                PieceStyle.paintCell(
+                        g,
+                        type,
+                        x + 2,
+                        y + 2,
+                        cellSize - 4, mode, patterns);
+            }
+        }
+
+        // 현재 떨어지고 있는 블록을 GameState에서 가져와 보드에 표시한다.
+        Tetromino currentPiece = state.currentPiece();
+
+        if (currentPiece != null) {
+            Board fixed = state.board();
+            int ghostRow = state.currentRow();
+            while (fixed.canPlace(currentPiece, ghostRow + 1, state.currentColumn())) ghostRow++;
+            if (ghostRow != state.currentRow()) {
+                for (int[] cell : currentPiece.cells()) {
+                    int row = ghostRow + cell[0], column = state.currentColumn() + cell[1];
+                    if (row >= 0 && row < Board.ROWS && column >= 0 && column < Board.COLUMNS)
+                        PieceStyle.paintGhostCell(g, board.x() + column * cellSize + 2,
+                                board.y() + row * cellSize + 2, cellSize - 4);
+                }
+            }
+            for (int[] cell : currentPiece.cells()) {
+
+                int row = state.currentRow() + cell[0];
+                int column = state.currentColumn() + cell[1];
+                if (row < 0 || row >= Board.ROWS || column < 0 || column >= Board.COLUMNS) continue;
+
+                int x = board.x() + column * cellSize;
+                int y = board.y() + row * cellSize;
+
+                PieceStyle.paintCell(
+                        g,
+                        currentPiece.type(),
+                        x + 2,
+                        y + 2,
+                        cellSize - 4, mode, patterns);
+            }
         }
     }
 
