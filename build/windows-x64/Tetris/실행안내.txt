@@ -1,0 +1,5 @@
+실행: Tetris.exe를 실행하세요. Windows x64용입니다.
+필수: Tetris.exe, app 폴더, runtime 폴더를 함께 보관하세요. EXE만 복사하면 실행되지 않습니다.
+Java/JDK 별도 설치 및 인터넷 연결은 필요하지 않습니다.
+설정은 사용자 홈의 .tetris\settings.properties, 점수는 .tetris-team-project\scores.tsv에 저장됩니다. 미리 준비할 필요는 없습니다.
+빌드 기준: integration/pr-7-8-11 / 7d681f8 (GitHub main 14be47d와 파일 내용 동일).
