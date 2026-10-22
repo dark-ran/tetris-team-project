@@ -36,6 +36,7 @@ GitHub의 `Package macOS` Actions에서도 실행 패키지를 다운로드할 �
 ## 상호평가 준비
 
 [요구사항·설계·검증 점검](docs/peer-review-readiness.md)에 현재 상태와 작업 순서를 정리했다.
+[팀원 의견별 진행안](docs/req2-team-plan.md)에서는 필수 요구사항·아이템 후보·역할 분담·OS별 검증을 구분한다.
 `./gradlew check`는 UI와 `Main`을 포함한 전체 코드의 줄 커버리지 50% 이상도 검사한다.
 기존 보드·블록·엔진의 클래스별 70% 검사는 함께 유지한다.
 
