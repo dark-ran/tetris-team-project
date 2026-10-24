@@ -200,3 +200,29 @@ tasks.register('packageMacos', Exec) {
                 tasks.named('jar').get().archiveFileName.get(), packageDirectory.absolutePath
     }
 }
+
+ 
+// Windows packages are reproducible build outputs, not version-controlled binaries.
+tasks.register('prepareWindowsInput', Sync) {
+    into layout.buildDirectory.dir('packaging/windows/input')
+    from tasks.named('jar')
+    from configurations.runtimeClasspath
+}
+
+tasks.register('packageWindows', Exec) {
+    description = 'Builds a Windows x64 executable with a bundled Java 21 runtime and ZIP archive.'
+    group = 'distribution'
+    dependsOn tasks.named('prepareWindowsInput')
+    doFirst {
+        if (!System.getProperty('os.name').toLowerCase(Locale.ROOT).contains('windows')) {
+            throw new GradleException('packageWindows must run on Windows x64 with JDK 21.')
+        }
+        def packageDirectory = layout.buildDirectory.dir('windows').get().asFile
+        delete packageDirectory
+        commandLine 'powershell.exe', '-NoProfile', '-ExecutionPolicy', 'Bypass',
+                '-File', file('packaging/windows/package.ps1').absolutePath,
+                javaToolchains.launcherFor(java.toolchain).get().metadata.installationPath.asFile.absolutePath,
+                layout.buildDirectory.dir('packaging/windows/input').get().asFile.absolutePath,
+                tasks.named('jar').get().archiveFileName.get(), packageDirectory.absolutePath
+    }
+}

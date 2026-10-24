@@ -12,6 +12,24 @@ JDK 21 환경에서 Gradle Wrapper를 사용한다.
 
 Windows PowerShell에서는 `./gradlew` 대신 `.\gradlew.bat`을 사용한다.
 
+## Windows 실행파일
+
+Windows x64와 JDK 21에서 다음 명령을 실행하면 아이콘, `Tetris.exe` 및
+동봉 Java 실행 환경이 포함된 패키지를 자동 생성한다.
+
+```powershell
+.\gradlew.bat clean packageWindows
+```
+
+생성된 `build/windows/Tetris/Tetris.exe`를 더블클릭해 실행한다.
+배포할 때는 `build/windows/Tetris-windows-x64.zip`을 사용한다.
+받는 PC에는 별도의 Java 설치가 필요하지 않다.
+
+`clean`은 `build/`의 산출물을 삭제하므로, 실행파일이 필요한 경우
+`packageWindows`를 다시 실행하거나 GitHub의 `Package Windows` Actions
+Artifact에서 ZIP을 내려받는다. `build/`는 Git에 추가하지 않는다.
+Windows x64에서 패키지를 생성하며 다른 CPU 아키텍처는 지원하지 않는다.
+
 ## macOS 실행파일
 
 macOS에서 JDK 21로 다음 명령을 실행하면 아이콘과 Java 실행 환경이 포함된 앱을 만든다.
