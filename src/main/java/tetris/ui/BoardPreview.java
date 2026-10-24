@@ -102,9 +102,7 @@ final class BoardPreview extends JPanel {
         Tetromino currentPiece = state.currentPiece();
 
         if (currentPiece != null) {
-            Board fixed = state.board();
-            int ghostRow = state.currentRow();
-            while (fixed.canPlace(currentPiece, ghostRow + 1, state.currentColumn())) ghostRow++;
+            int ghostRow = state.landingRow();
             if (ghostRow != state.currentRow()) {
                 for (int[] cell : currentPiece.cells()) {
                     int row = ghostRow + cell[0], column = state.currentColumn() + cell[1];

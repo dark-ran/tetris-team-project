@@ -2,6 +2,8 @@ package tetris.board;
 
 import java.util.Arrays;
 import java.util.Objects;
+import java.util.LinkedHashSet;
+import java.util.Set;
 import tetris.piece.Tetromino;
 
 /** 20행 10열의 고정된 블록을 보관하고 배치 검사, 블록 고정, 완성된 줄 삭제를 담당한다. */
@@ -54,10 +56,30 @@ public final class Board {
 
     /** 완성된 줄을 모두 삭제하고 위쪽 줄을 내린 뒤, 삭제한 줄 수를 반환한다. */
     public int clearFullRows() {
+        return clearRows(fullRows());
+    }
+
+    /** 현재 꽉 찬 행의 번호. 삭제 전에 조회하므로 여러 효과의 중복 행을 합칠 수 있다. */
+    public Set<Integer> fullRows() {
+        Set<Integer> rows = new LinkedHashSet<>();
+        for (int row = 0; row < ROWS; row++) {
+            if (isFullRow(row)) rows.add(row);
+        }
+        return Set.copyOf(rows);
+    }
+
+    /** 지정한 행을 한 번에 삭제한다. 같은 행은 한 번만 삭제하며 위쪽 칸을 내린다. */
+    public int clearRows(Set<Integer> rows) {
+        Objects.requireNonNull(rows);
+        for (Integer row : rows) {
+            if (row == null || row < 0 || row >= ROWS) {
+                throw new IllegalArgumentException("삭제할 행이 보드 밖입니다.");
+            }
+        }
         int destinationRow = ROWS - 1;
         int clearedRows = 0;
         for (int sourceRow = ROWS - 1; sourceRow >= 0; sourceRow--) {
-            if (isFullRow(sourceRow)) {
+            if (rows.contains(sourceRow)) {
                 clearedRows++;
                 continue;
             }

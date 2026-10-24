@@ -11,7 +11,8 @@ public final class GameState {
     private final Tetromino currentPiece;
     private final int currentRow;
     private final int currentColumn;
-    private final List<PieceType> nextPieces;
+    private final List<Tetromino> upcomingPieces;
+    private final int landingRow;
     private final GamePhase phase;
     private final long score;
     private final int level;
@@ -19,13 +20,14 @@ public final class GameState {
     private final int totalClearedRows;
 
     GameState(Board board, Tetromino currentPiece, int currentRow, int currentColumn,
-            List<PieceType> nextPieces, GamePhase phase, long score, int level,
-            int spawnedPieces, int totalClearedRows) {
+            List<Tetromino> nextPieces, GamePhase phase, long score, int level,
+            int spawnedPieces, int totalClearedRows, int landingRow) {
         this.board = board.copy();
         this.currentPiece = currentPiece;
         this.currentRow = currentRow;
         this.currentColumn = currentColumn;
-        this.nextPieces = List.copyOf(nextPieces);
+        this.upcomingPieces = List.copyOf(nextPieces);
+        this.landingRow = landingRow;
         this.phase = phase;
         this.score = score;
         this.level = level;
@@ -55,8 +57,11 @@ public final class GameState {
 
     /** 수정할 수 없는 다음 블록 목록. 첫 원소가 다음 생성 대상이다. */
     public List<PieceType> nextPieces() {
-        return nextPieces;
+        return upcomingPieces.stream().map(Tetromino::type).toList();
     }
+
+    public List<Tetromino> upcomingPieces() { return upcomingPieces; }
+    public int landingRow() { return landingRow; }
 
     /** 조회 시점의 게임 진행 상태. */
     public GamePhase phase() {

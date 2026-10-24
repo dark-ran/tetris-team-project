@@ -162,6 +162,6 @@ public class GameScreen extends JPanel {
         if (state == null) return;
         boardPreview.render(state);
         scoreLabel.setText(Long.toString(state.score())); levelLabel.setText(Integer.toString(state.level()));
-        nextPiecePreview.setPiece(state.nextPieces().isEmpty() ? null : state.nextPieces().getFirst());
+        nextPiecePreview.setBlock(state.upcomingPieces().isEmpty() ? null : state.upcomingPieces().getFirst());
     }
 }

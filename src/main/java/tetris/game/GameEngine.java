@@ -8,6 +8,7 @@ import java.util.random.RandomGenerator;
 import tetris.board.Board;
 import tetris.piece.PieceQueue;
 import tetris.piece.Tetromino;
+import tetris.rule.PieceRules;
 
 /** 화면과 타이머에 의존하지 않고 행동과 진행 상태를 처리한다. 호출은 한 실행 흐름에서 한다. */
 public final class GameEngine {
@@ -16,6 +17,8 @@ public final class GameEngine {
     private final PieceSpawnPolicy spawnPolicy;
     private PieceQueue pieceQueue;
     private Tetromino currentPiece;
+    private PieceRules currentRules;
+    private boolean contacted;
     private int currentRow;
     private int currentColumn;
     private GamePhase phase = GamePhase.READY;
@@ -86,8 +89,9 @@ public final class GameEngine {
     /** 외부의 보드 수정과 이후 행동에 영향받지 않는 조회 시점의 상태를 반환한다. */
     public GameState state() {
         return new GameState(board, currentPiece, currentRow, currentColumn,
-                pieceQueue == null ? List.of() : pieceQueue.preview(), phase, score, level,
-                spawnedPieces, totalClearedRows);
+                pieceQueue == null ? List.of() : pieceQueue.previewPieces(), phase, score, level,
+                spawnedPieces, totalClearedRows, currentPiece == null ? currentRow
+                        : currentRules.movement().landingRow(board, currentPiece, currentRow, currentColumn));
     }
 
     public boolean isGameOver() {
@@ -104,27 +108,31 @@ public final class GameEngine {
     }
 
     private boolean moveHorizontally(int direction) {
+        if (!currentRules.movement().allowsHorizontal(contacted)) return false;
         int candidateColumn = currentColumn + direction;
         if (!board.canPlace(currentPiece, currentRow, candidateColumn)) {
             return false;
         }
         currentColumn = candidateColumn;
+        updateContact();
         return true;
     }
 
     private boolean rotateClockwise() {
+        if (!currentRules.movement().allowsRotation()) return false;
         Tetromino candidatePiece = currentPiece.rotateClockwise();
         if (Arrays.deepEquals(candidatePiece.cells(), currentPiece.cells())
                 || !board.canPlace(candidatePiece, currentRow, currentColumn)) {
             return false;
         }
         currentPiece = candidatePiece;
+        updateContact();
         return true;
     }
 
     private GameActionResult moveDown(GamePhase previousPhase) {
-        if (board.canPlace(currentPiece, currentRow + 1, currentColumn)) {
-            currentRow++;
+        if (currentRules.movement().canDescend(board, currentPiece, currentRow, currentColumn)) {
+            descend();
             return result(true, 1, 0, false, false, previousPhase);
         }
         return lockAndSpawn(0, previousPhase);
@@ -132,8 +140,8 @@ public final class GameEngine {
 
     private GameActionResult hardDrop(GamePhase previousPhase) {
         int droppedRows = 0;
-        while (board.canPlace(currentPiece, currentRow + 1, currentColumn)) {
-            currentRow++;
+        while (currentRules.movement().canDescend(board, currentPiece, currentRow, currentColumn)) {
+            descend();
             droppedRows++;
         }
         return lockAndSpawn(droppedRows, previousPhase);
@@ -141,14 +149,15 @@ public final class GameEngine {
 
     private GameActionResult lockAndSpawn(int droppedRows, GamePhase previousPhase) {
         board.lock(currentPiece, currentRow, currentColumn);
-        int clearedRows = board.clearFullRows();
+        int clearedRows = board.clearRows(currentRules.lockEffect()
+                .rowsToClear(board, currentPiece, currentRow, currentColumn));
         totalClearedRows += clearedRows;
         boolean spawned = spawnNextPiece();
         return result(true, droppedRows, clearedRows, true, spawned, previousPhase);
     }
 
     private boolean spawnNextPiece() {
-        Tetromino candidatePiece = new Tetromino(pieceQueue.next());
+        Tetromino candidatePiece = pieceQueue.nextPiece();
         currentRow = spawnPolicy.startingRow(candidatePiece);
         currentColumn = spawnPolicy.startingColumn(candidatePiece);
         if (!board.canPlace(candidatePiece, currentRow, currentColumn)) {
@@ -157,8 +166,21 @@ public final class GameEngine {
             return false;
         }
         currentPiece = candidatePiece;
+        currentRules = PieceRules.forPiece(candidatePiece);
+        contacted = false;
+        updateContact();
         spawnedPieces++;
         return true;
+    }
+
+    private void descend() {
+        currentRow++;
+        currentRules.movement().afterDescent(board, currentPiece, currentRow, currentColumn);
+        updateContact();
+    }
+
+    private void updateContact() {
+        contacted |= !board.canPlace(currentPiece, currentRow + 1, currentColumn);
     }
 
     private GameActionResult result(boolean changed, int droppedRows, int clearedRows,
