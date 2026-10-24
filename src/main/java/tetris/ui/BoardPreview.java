@@ -126,6 +126,9 @@ final class BoardPreview extends JPanel {
                         x + 2,
                         y + 2,
                         cellSize - 4, mode, patterns);
+                if (currentPiece.hasItemAt(cell[0], cell[1])) {
+                    PieceStyle.paintItem(g, currentPiece.itemType(), x + 2, y + 2, cellSize - 4);
+                }
             }
         }
     }

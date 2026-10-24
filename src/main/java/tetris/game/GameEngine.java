@@ -1,12 +1,13 @@
 package tetris.game;
 
-import java.util.Arrays;
 import java.util.List;
 import java.util.Objects;
 import java.util.function.Supplier;
+import java.util.function.UnaryOperator;
 import java.util.random.RandomGenerator;
 import tetris.board.Board;
 import tetris.piece.PieceQueue;
+import tetris.piece.LineClearItemGenerator;
 import tetris.piece.Tetromino;
 import tetris.rule.PieceRules;
 
@@ -15,6 +16,7 @@ public final class GameEngine {
     private final Board board = new Board();
     private final Supplier<PieceQueue> pieceQueueFactory;
     private final PieceSpawnPolicy spawnPolicy;
+    private final UnaryOperator<Tetromino> itemGenerator;
     private PieceQueue pieceQueue;
     private Tetromino currentPiece;
     private PieceRules currentRules;
@@ -27,20 +29,29 @@ public final class GameEngine {
     private int level = 1;
     private int spawnedPieces;
     private int totalClearedRows;
+    private int pendingItems;
 
     public GameEngine() {
-        this(PieceQueue::new, new CenteredPieceSpawnPolicy());
+        this(RandomGenerator.getDefault());
     }
 
     /** 재현 가능한 생성 순서가 필요할 때 무작위 선택기를 전달한다. */
     public GameEngine(RandomGenerator randomGenerator) {
-        this(queueFactory(randomGenerator), new CenteredPieceSpawnPolicy());
+        this(queueFactory(randomGenerator), new CenteredPieceSpawnPolicy(),
+                new LineClearItemGenerator(randomGenerator));
     }
 
     /** 새 게임의 블록 공급 방식과 시작 위치 규칙을 객체로 전달한다. */
     public GameEngine(Supplier<PieceQueue> pieceQueueFactory, PieceSpawnPolicy spawnPolicy) {
+        this(pieceQueueFactory, spawnPolicy, new LineClearItemGenerator(RandomGenerator.getDefault()));
+    }
+
+    /** 아이템 생성 방식을 바꾸어도 등장 시점과 진행 규칙은 유지된다. */
+    public GameEngine(Supplier<PieceQueue> pieceQueueFactory, PieceSpawnPolicy spawnPolicy,
+            UnaryOperator<Tetromino> itemGenerator) {
         this.pieceQueueFactory = Objects.requireNonNull(pieceQueueFactory, "블록 목록 생성기가 필요합니다.");
         this.spawnPolicy = Objects.requireNonNull(spawnPolicy, "블록 시작 위치 규칙이 필요합니다.");
+        this.itemGenerator = Objects.requireNonNull(itemGenerator, "아이템 생성기가 필요합니다.");
     }
 
     private static Supplier<PieceQueue> queueFactory(RandomGenerator randomGenerator) {
@@ -63,6 +74,7 @@ public final class GameEngine {
         level = 1;
         spawnedPieces = 0;
         totalClearedRows = 0;
+        pendingItems = 0;
         this.mode = mode;
         phase = GamePhase.RUNNING;
         spawnNextPiece();
@@ -128,7 +140,7 @@ public final class GameEngine {
     private boolean rotateClockwise() {
         if (!currentRules.movement().allowsRotation()) return false;
         Tetromino candidatePiece = currentPiece.rotateClockwise();
-        if (Arrays.deepEquals(candidatePiece.cells(), currentPiece.cells())
+        if (candidatePiece.hasSameLayout(currentPiece)
                 || !board.canPlace(candidatePiece, currentRow, currentColumn)) {
             return false;
         }
@@ -158,13 +170,23 @@ public final class GameEngine {
         board.lock(currentPiece, currentRow, currentColumn);
         int clearedRows = board.clearRows(currentRules.lockEffect()
                 .rowsToClear(board, currentPiece, currentRow, currentColumn));
+        int previousClearedRows = totalClearedRows;
         totalClearedRows += clearedRows;
+        if (mode == GameMode.ITEM) {
+            pendingItems += totalClearedRows / 10 - previousClearedRows / 10;
+        }
         boolean spawned = spawnNextPiece();
         return result(true, droppedRows, clearedRows, true, spawned, previousPhase);
     }
 
     private boolean spawnNextPiece() {
-        Tetromino candidatePiece = pieceQueue.nextPiece();
+        Tetromino candidatePiece;
+        if (pendingItems > 0) {
+            candidatePiece = pieceQueue.nextPiece(itemGenerator);
+            pendingItems--;
+        } else {
+            candidatePiece = pieceQueue.nextPiece();
+        }
         currentRow = spawnPolicy.startingRow(candidatePiece);
         currentColumn = spawnPolicy.startingColumn(candidatePiece);
         if (!board.canPlace(candidatePiece, currentRow, currentColumn)) {

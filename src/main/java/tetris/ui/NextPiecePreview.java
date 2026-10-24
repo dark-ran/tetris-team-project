@@ -6,6 +6,7 @@ import java.awt.Rectangle;
 import java.util.Objects;
 import javax.swing.JPanel;
 import tetris.piece.PieceType;
+import tetris.piece.ItemType;
 import tetris.piece.Tetromino;
 import tetris.settings.ColorVisionMode;
 
@@ -27,7 +28,7 @@ final class NextPiecePreview extends JPanel {
     }
 
     void setPiece(PieceType next) {
-        if (piece != null && piece.type() == next) return;
+        if (piece != null && piece.type() == next && piece.itemType() == ItemType.NONE) return;
         setBlock(next == null ? null : new Tetromino(next));
     }
 
@@ -50,6 +51,9 @@ final class NextPiecePreview extends JPanel {
             columns = lastColumn - firstColumn + 1;
         }
         String description = next == null ? "다음 블록 없음" : "다음 블록: " + next.type().name();
+        if (next != null && next.itemType() != ItemType.NONE) {
+            description += " / " + next.itemType().displayName();
+        }
         getAccessibleContext().setAccessibleName(description);
         setToolTipText(description);
         repaint();
@@ -70,8 +74,12 @@ final class NextPiecePreview extends JPanel {
         Rectangle bounds = new Rectangle((getWidth() - columns * size) / 2,
                 (getHeight() - rows * size) / 2, columns * size, rows * size);
         for (int[] cell : cells) {
-            PieceStyle.paintCell(graphics, piece.type(), bounds.x + (cell[1] - firstColumn) * size,
-                    bounds.y + (cell[0] - firstRow) * size, size, mode, patterns);
+            int x = bounds.x + (cell[1] - firstColumn) * size;
+            int y = bounds.y + (cell[0] - firstRow) * size;
+            PieceStyle.paintCell(graphics, piece.type(), x, y, size, mode, patterns);
+            if (piece.hasItemAt(cell[0], cell[1])) {
+                PieceStyle.paintItem(graphics, piece.itemType(), x, y, size);
+            }
         }
     }
 }

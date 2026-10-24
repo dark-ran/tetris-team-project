@@ -6,6 +6,7 @@ import java.util.List;
 import java.util.Objects;
 import java.util.random.RandomGenerator;
 import java.util.function.Supplier;
+import java.util.function.UnaryOperator;
 
 /** 일곱 종류를 매번 독립적으로 균등 선택하고, 생성 순서대로 다음 블록을 보관한다. */
 public final class PieceQueue {
@@ -48,7 +49,12 @@ public final class PieceQueue {
 
     /** 모양 정보를 그대로 전달한다. 미리보기와 실제 생성이 같은 객체를 사용한다. */
     public Tetromino nextPiece() {
-        Tetromino replacement = generate();
+        return nextPiece(UnaryOperator.identity());
+    }
+
+    /** 새로 추가되는 미리보기만 변환한다. 이미 보여 준 다음 블록은 그대로 생성한다. */
+    public Tetromino nextPiece(UnaryOperator<Tetromino> decorateReplacement) {
+        Tetromino replacement = Objects.requireNonNull(decorateReplacement.apply(generate()));
         Tetromino nextPiece = upcomingPieces.removeFirst();
         upcomingPieces.addLast(replacement);
         return nextPiece;
