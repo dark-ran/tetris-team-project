@@ -58,7 +58,7 @@ try {
     try {
         $foundExe = $false
         foreach ($entry in $archive.Entries) {
-            if ($entry.FullName -eq 'Tetris/Tetris.exe') { $foundExe = $true; break }
+            if ($entry.FullName.Replace('\', '/') -eq 'Tetris/Tetris.exe') { $foundExe = $true; break }
         }
         if (-not $foundExe) { throw 'ZIP is missing Tetris/Tetris.exe.' }
     } finally {
