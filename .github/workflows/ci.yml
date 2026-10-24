@@ -47,3 +47,81 @@ jobs:
       - name: Build and test on Windows
         if: runner.os == 'Windows'
         run: .\gradlew.bat --no-daemon clean build jacocoTestReport
+
+      - name: Summarize JaCoCo coverage
+        if: always()
+        shell: pwsh
+        run: ./.github/scripts/coverage-summary.ps1
+
+      - name: Save coverage and test reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-reports-${{ matrix.os }}
+          path: |
+            build/reports/jacoco/test/
+            build/reports/tests/test/
+            build/test-results/test/
+          if-no-files-found: warn
+
+  coverage-report:
+    name: Update PR body coverage report
+    needs: test
+    if: >-
+      ${{ !cancelled() && github.event_name == 'pull_request' &&
+          github.event.pull_request.head.repo.full_name == github.repository &&
+          !contains(github.event.pull_request.labels.*.name, 'no-coverage-comment') &&
+          github.actor != 'dependabot[bot]' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      actions: read
+      pull-requests: write
+    steps:
+      - name: Download coverage summary
+        uses: actions/download-artifact@v4
+        with:
+          name: test-reports-ubuntu-latest
+          path: reports
+
+      - name: Update coverage section in PR body
+        uses: actions/github-script@v9
+        env:
+          TEST_JOB_RESULT: ${{ needs.test.result }}
+        with:
+          script: |
+            const fs = require('node:fs');
+            const startMarker = '<!-- tetris-jacoco-coverage:start -->';
+            const endMarker = '<!-- tetris-jacoco-coverage:end -->';
+            const summary = fs.readFileSync('reports/reports/jacoco/test/coverage-summary.md', 'utf8');
+            const runUrl = `${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`;
+            const report = `${startMarker}\n## CI 검증 결과\n\n` +
+              `Commit: \`${context.payload.pull_request.head.sha}\`\n\n` +
+              `Environment: ubuntu-latest · CI result: ${process.env.TEST_JOB_RESULT}\n\n` +
+              `${summary}\n[Actions results for all environments](${runUrl})\n${endMarker}`;
+            const { data: pullRequest } = await github.rest.pulls.get({
+              ...context.repo,
+              pull_number: context.issue.number
+            });
+            if (pullRequest.head.sha !== context.payload.pull_request.head.sha || pullRequest.state !== 'open') {
+              core.info('Skipping report for an outdated commit or closed PR.');
+              return;
+            }
+            const currentBody = pullRequest.body ?? '';
+            const start = currentBody.indexOf(startMarker);
+            const end = currentBody.indexOf(endMarker);
+            let body;
+            if (start === -1 && end === -1) {
+              core.info('Coverage section is absent. Leaving the PR body unchanged.');
+              return;
+            } else if (start !== -1 && end > start &&
+                       currentBody.indexOf(startMarker, start + startMarker.length) === -1 &&
+                       currentBody.indexOf(endMarker, end + endMarker.length) === -1) {
+              body = currentBody.slice(0, start) + report + currentBody.slice(end + endMarker.length);
+            } else {
+              core.setFailed('Coverage section markers are incomplete or duplicated. Restore both markers before retrying.');
+              return;
+            }
+            await github.rest.pulls.update({
+              ...context.repo, pull_number: context.issue.number, body
+            });
