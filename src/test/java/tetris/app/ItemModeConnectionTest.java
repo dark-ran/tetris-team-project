@@ -35,6 +35,7 @@ class ItemModeConnectionTest {
                 private int pieces;
                 @Override public int nextInt(int bound) {
                     if (bound == 7) return pieces++ % 3 == 2 ? PieceType.O.ordinal() : PieceType.I.ordinal();
+                    if (bound == 2) return 0; // 이 검증은 L 아이템의 점수·삭제 흐름을 대상으로 한다.
                     return super.nextInt(bound);
                 }
             });

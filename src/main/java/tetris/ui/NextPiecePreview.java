@@ -50,8 +50,9 @@ final class NextPiecePreview extends JPanel {
             rows = lastRow - firstRow + 1;
             columns = lastColumn - firstColumn + 1;
         }
-        String description = next == null ? "다음 블록 없음" : "다음 블록: " + next.type().name();
-        if (next != null && next.itemType() != ItemType.NONE) {
+        String description = next == null ? "다음 블록 없음" : next.itemType().isStandalone()
+                ? "다음 아이템: " + next.itemType().displayName() : "다음 블록: " + next.type().name();
+        if (next != null && next.itemType() != ItemType.NONE && !next.itemType().isStandalone()) {
             description += " / " + next.itemType().displayName();
         }
         getAccessibleContext().setAccessibleName(description);

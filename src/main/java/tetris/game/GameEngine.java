@@ -7,7 +7,7 @@ import java.util.function.UnaryOperator;
 import java.util.random.RandomGenerator;
 import tetris.board.Board;
 import tetris.piece.PieceQueue;
-import tetris.piece.LineClearItemGenerator;
+import tetris.piece.ItemGenerator;
 import tetris.piece.Tetromino;
 import tetris.rule.PieceRules;
 
@@ -39,12 +39,12 @@ public final class GameEngine {
     /** 재현 가능한 생성 순서가 필요할 때 무작위 선택기를 전달한다. */
     public GameEngine(RandomGenerator randomGenerator) {
         this(queueFactory(randomGenerator), new CenteredPieceSpawnPolicy(),
-                new LineClearItemGenerator(randomGenerator));
+                new ItemGenerator(randomGenerator));
     }
 
     /** 새 게임의 블록 공급 방식과 시작 위치 규칙을 객체로 전달한다. */
     public GameEngine(Supplier<PieceQueue> pieceQueueFactory, PieceSpawnPolicy spawnPolicy) {
-        this(pieceQueueFactory, spawnPolicy, new LineClearItemGenerator(RandomGenerator.getDefault()));
+        this(pieceQueueFactory, spawnPolicy, new ItemGenerator(RandomGenerator.getDefault()));
     }
 
     /** 아이템 생성 방식을 바꾸어도 등장 시점과 진행 규칙은 유지된다. */
@@ -168,7 +168,7 @@ public final class GameEngine {
     }
 
     private GameActionResult lockAndSpawn(int droppedRows, GamePhase previousPhase) {
-        board.lock(currentPiece, currentRow, currentColumn);
+        if (currentRules.leavesPieceOnBoard()) board.lock(currentPiece, currentRow, currentColumn);
         int clearedRows = board.clearRows(currentRules.lockEffect()
                 .rowsToClear(board, currentPiece, currentRow, currentColumn));
         int previousClearedRows = totalClearedRows;

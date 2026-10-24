@@ -20,6 +20,7 @@ import tetris.loop.GameLoop;
 import tetris.input.InputHandler;
 import tetris.input.KeyMapper;
 import tetris.rule.ScoreSystem;
+import tetris.rule.PieceRules;
 import tetris.rule.SpeedSystem;
 import tetris.scoreboard.ScoreBoardService;
 import tetris.scoreboard.ScoreEntry;
@@ -230,8 +231,9 @@ public class AppController {
         GameState before = engine.state();
         GameActionResult result = engine.apply(action);
 
-        long gained = (long) scoreSystem.onDrop(result.droppedRows(),
-                interval < SpeedSystem.INITIAL_INTERVAL_MILLIS) + scoreSystem.onLineClear(result.clearedRows());
+        boolean awardsScore = before.currentPiece() != null && PieceRules.forPiece(before.currentPiece()).awardsScore();
+        long gained = awardsScore ? (long) scoreSystem.onDrop(result.droppedRows(),
+                interval < SpeedSystem.INITIAL_INTERVAL_MILLIS) + scoreSystem.onLineClear(result.clearedRows()) : 0;
         updateProgress(Math.addExact(before.score(), gained));
 
         if (result.currentPhase() == GamePhase.PAUSED && result.previousPhase() == GamePhase.RUNNING) loop.pause();
