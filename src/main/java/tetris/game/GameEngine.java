@@ -1,42 +1,58 @@
 package tetris.game;
 
-import java.util.Arrays;
 import java.util.List;
 import java.util.Objects;
 import java.util.function.Supplier;
+import java.util.function.UnaryOperator;
 import java.util.random.RandomGenerator;
 import tetris.board.Board;
 import tetris.piece.PieceQueue;
+import tetris.piece.ItemGenerator;
 import tetris.piece.Tetromino;
+import tetris.rule.PieceRules;
 
 /** 화면과 타이머에 의존하지 않고 행동과 진행 상태를 처리한다. 호출은 한 실행 흐름에서 한다. */
 public final class GameEngine {
+    public static final int ROWS_PER_ITEM = 10;
     private final Board board = new Board();
     private final Supplier<PieceQueue> pieceQueueFactory;
     private final PieceSpawnPolicy spawnPolicy;
+    private final UnaryOperator<Tetromino> itemGenerator;
     private PieceQueue pieceQueue;
     private Tetromino currentPiece;
+    private PieceRules currentRules;
+    private boolean contacted;
     private int currentRow;
     private int currentColumn;
     private GamePhase phase = GamePhase.READY;
+    private GameMode mode = GameMode.NORMAL;
     private long score;
     private int level = 1;
     private int spawnedPieces;
     private int totalClearedRows;
+    private int pendingItems;
 
     public GameEngine() {
-        this(PieceQueue::new, new CenteredPieceSpawnPolicy());
+        this(RandomGenerator.getDefault());
     }
 
     /** 재현 가능한 생성 순서가 필요할 때 무작위 선택기를 전달한다. */
     public GameEngine(RandomGenerator randomGenerator) {
-        this(queueFactory(randomGenerator), new CenteredPieceSpawnPolicy());
+        this(queueFactory(randomGenerator), new CenteredPieceSpawnPolicy(),
+                new ItemGenerator(randomGenerator));
     }
 
     /** 새 게임의 블록 공급 방식과 시작 위치 규칙을 객체로 전달한다. */
     public GameEngine(Supplier<PieceQueue> pieceQueueFactory, PieceSpawnPolicy spawnPolicy) {
+        this(pieceQueueFactory, spawnPolicy, new ItemGenerator(RandomGenerator.getDefault()));
+    }
+
+    /** 아이템 생성 방식을 바꾸어도 등장 시점과 진행 규칙은 유지된다. */
+    public GameEngine(Supplier<PieceQueue> pieceQueueFactory, PieceSpawnPolicy spawnPolicy,
+            UnaryOperator<Tetromino> itemGenerator) {
         this.pieceQueueFactory = Objects.requireNonNull(pieceQueueFactory, "블록 목록 생성기가 필요합니다.");
         this.spawnPolicy = Objects.requireNonNull(spawnPolicy, "블록 시작 위치 규칙이 필요합니다.");
+        this.itemGenerator = Objects.requireNonNull(itemGenerator, "아이템 생성기가 필요합니다.");
     }
 
     private static Supplier<PieceQueue> queueFactory(RandomGenerator randomGenerator) {
@@ -46,6 +62,11 @@ public final class GameEngine {
 
     /** 보드·점수·누적 수치를 초기화하고 첫 블록을 생성한다. 생성 실패 시 게임오버이다. */
     public void newGame() {
+        newGame(GameMode.NORMAL);
+    }
+
+    public void newGame(GameMode mode) {
+        Objects.requireNonNull(mode);
         PieceQueue newQueue = Objects.requireNonNull(pieceQueueFactory.get(), "생성한 블록 목록이 필요합니다.");
         board.reset();
         pieceQueue = newQueue;
@@ -54,6 +75,8 @@ public final class GameEngine {
         level = 1;
         spawnedPieces = 0;
         totalClearedRows = 0;
+        pendingItems = 0;
+        this.mode = mode;
         phase = GamePhase.RUNNING;
         spawnNextPiece();
     }
@@ -86,8 +109,9 @@ public final class GameEngine {
     /** 외부의 보드 수정과 이후 행동에 영향받지 않는 조회 시점의 상태를 반환한다. */
     public GameState state() {
         return new GameState(board, currentPiece, currentRow, currentColumn,
-                pieceQueue == null ? List.of() : pieceQueue.preview(), phase, score, level,
-                spawnedPieces, totalClearedRows);
+                pieceQueue == null ? List.of() : pieceQueue.previewPieces(), phase, score, level,
+                spawnedPieces, totalClearedRows, currentPiece == null ? currentRow
+                        : currentRules.movement().landingRow(board, currentPiece, currentRow, currentColumn), mode);
     }
 
     public boolean isGameOver() {
@@ -104,27 +128,31 @@ public final class GameEngine {
     }
 
     private boolean moveHorizontally(int direction) {
+        if (!currentRules.movement().allowsHorizontal(contacted)) return false;
         int candidateColumn = currentColumn + direction;
         if (!board.canPlace(currentPiece, currentRow, candidateColumn)) {
             return false;
         }
         currentColumn = candidateColumn;
+        updateContact();
         return true;
     }
 
     private boolean rotateClockwise() {
+        if (!currentRules.movement().allowsRotation()) return false;
         Tetromino candidatePiece = currentPiece.rotateClockwise();
-        if (Arrays.deepEquals(candidatePiece.cells(), currentPiece.cells())
+        if (candidatePiece.hasSameLayout(currentPiece)
                 || !board.canPlace(candidatePiece, currentRow, currentColumn)) {
             return false;
         }
         currentPiece = candidatePiece;
+        updateContact();
         return true;
     }
 
     private GameActionResult moveDown(GamePhase previousPhase) {
-        if (board.canPlace(currentPiece, currentRow + 1, currentColumn)) {
-            currentRow++;
+        if (currentRules.movement().canDescend(board, currentPiece, currentRow, currentColumn)) {
+            descend();
             return result(true, 1, 0, false, false, previousPhase);
         }
         return lockAndSpawn(0, previousPhase);
@@ -132,23 +160,34 @@ public final class GameEngine {
 
     private GameActionResult hardDrop(GamePhase previousPhase) {
         int droppedRows = 0;
-        while (board.canPlace(currentPiece, currentRow + 1, currentColumn)) {
-            currentRow++;
+        while (currentRules.movement().canDescend(board, currentPiece, currentRow, currentColumn)) {
+            descend();
             droppedRows++;
         }
         return lockAndSpawn(droppedRows, previousPhase);
     }
 
     private GameActionResult lockAndSpawn(int droppedRows, GamePhase previousPhase) {
-        board.lock(currentPiece, currentRow, currentColumn);
-        int clearedRows = board.clearFullRows();
+        if (currentRules.leavesPieceOnBoard()) board.lock(currentPiece, currentRow, currentColumn);
+        int clearedRows = board.clearRows(currentRules.lockEffect()
+                .rowsToClear(board, currentPiece, currentRow, currentColumn));
+        int previousClearedRows = totalClearedRows;
         totalClearedRows += clearedRows;
+        if (mode == GameMode.ITEM) {
+            pendingItems += totalClearedRows / ROWS_PER_ITEM - previousClearedRows / ROWS_PER_ITEM;
+        }
         boolean spawned = spawnNextPiece();
         return result(true, droppedRows, clearedRows, true, spawned, previousPhase);
     }
 
     private boolean spawnNextPiece() {
-        Tetromino candidatePiece = new Tetromino(pieceQueue.next());
+        Tetromino candidatePiece;
+        if (pendingItems > 0) {
+            candidatePiece = pieceQueue.nextPiece(itemGenerator);
+            pendingItems--;
+        } else {
+            candidatePiece = pieceQueue.nextPiece();
+        }
         currentRow = spawnPolicy.startingRow(candidatePiece);
         currentColumn = spawnPolicy.startingColumn(candidatePiece);
         if (!board.canPlace(candidatePiece, currentRow, currentColumn)) {
@@ -157,8 +196,21 @@ public final class GameEngine {
             return false;
         }
         currentPiece = candidatePiece;
+        currentRules = PieceRules.forPiece(candidatePiece);
+        contacted = false;
+        updateContact();
         spawnedPieces++;
         return true;
+    }
+
+    private void descend() {
+        currentRow++;
+        currentRules.movement().afterDescent(board, currentPiece, currentRow, currentColumn);
+        updateContact();
+    }
+
+    private void updateContact() {
+        contacted |= !board.canPlace(currentPiece, currentRow + 1, currentColumn);
     }
 
     private GameActionResult result(boolean changed, int droppedRows, int clearedRows,
