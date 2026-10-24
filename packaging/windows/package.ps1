@@ -65,7 +65,17 @@ try {
         $archive.Dispose()
     }
 
-    $hash = (Get-FileHash -LiteralPath $zip -Algorithm SHA256).Hash.ToLowerInvariant()
+    $stream = [System.IO.File]::OpenRead($zip)
+    try {
+        $digest = [System.Security.Cryptography.SHA256]::Create()
+        try {
+            $hash = [System.BitConverter]::ToString($digest.ComputeHash($stream)).Replace('-', '').ToLowerInvariant()
+        } finally {
+            $digest.Dispose()
+        }
+    } finally {
+        $stream.Dispose()
+    }
     $sha = Join-Path $OutputDir 'Tetris-windows-x64.zip.sha256'
     [System.IO.File]::WriteAllText($sha, "$hash  Tetris-windows-x64.zip`n",
         [System.Text.Encoding]::ASCII)
