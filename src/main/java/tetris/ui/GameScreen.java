@@ -17,6 +17,8 @@ import javax.swing.JPanel;
 import javax.swing.KeyStroke;
 import tetris.game.GameState;
 import tetris.game.GameAction;
+import tetris.game.GameEngine;
+import tetris.game.GameMode;
 import tetris.input.InputHandler;
 import tetris.settings.GameSettings;
 
@@ -27,6 +29,7 @@ public class GameScreen extends JPanel {
     private final JLabel scoreLabel = new JLabel("0");
     private final JLabel levelLabel = new JLabel("1");
     private final JLabel modeLabel = new JLabel("일반 모드");
+    private final JLabel itemProgressLabel = ScreenSupport.mutedLabel("");
     private final NextPiecePreview nextPiecePreview = new NextPiecePreview();
     private final JPanel controls = ScreenSupport.verticalPanel();
     private final JPanel content = ScreenSupport.transparentPanel(new GridBagLayout());
@@ -140,7 +143,11 @@ public class GameScreen extends JPanel {
         panel.setPreferredSize(new Dimension(240, 0));
         panel.add(nextPieceCard(), BorderLayout.NORTH);
         JPanel details = ScreenSupport.framedPanel(new BorderLayout());
-        details.add(modeLabel, BorderLayout.NORTH);
+        JPanel modeDetails = ScreenSupport.verticalPanel();
+        modeDetails.add(modeLabel);
+        modeDetails.add(itemProgressLabel);
+        itemProgressLabel.setVisible(false);
+        details.add(modeDetails, BorderLayout.NORTH);
         JPanel sections = ScreenSupport.verticalPanel();
         sections.add(informationSection("점수", scoreLabel));
         sections.add(Box.createVerticalStrut(8));
@@ -164,6 +171,9 @@ public class GameScreen extends JPanel {
         if (state == null) return;
         boardPreview.render(state);
         modeLabel.setText(state.mode().toString());
+        itemProgressLabel.setVisible(state.mode() == GameMode.ITEM);
+        itemProgressLabel.setText("다음 L 아이템까지 "
+                + (GameEngine.ROWS_PER_ITEM - state.totalClearedRows() % GameEngine.ROWS_PER_ITEM) + "줄");
         scoreLabel.setText(Long.toString(state.score())); levelLabel.setText(Integer.toString(state.level()));
         nextPiecePreview.setBlock(state.upcomingPieces().isEmpty() ? null : state.upcomingPieces().getFirst());
     }

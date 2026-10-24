@@ -34,17 +34,32 @@ class LineClearItemTest {
         assertFalse(plain.hasItemAt(0, 0));
     }
 
-    @Test void randomAttachmentSelectsAllFourCellsAndKeepsTheShape() {
-        LineClearItemGenerator generator = new LineClearItemGenerator(new Random(624));
-        Tetromino plain = new Tetromino(PieceType.I);
+    @ParameterizedTest @EnumSource(PieceType.class)
+    void randomAttachmentStaysWithinFivePercentOfExpectedCount(PieceType type) {
+        LineClearItemGenerator generator = new LineClearItemGenerator(new Random(624 + type.ordinal()));
+        Tetromino plain = new Tetromino(type);
+        int[][] cells = plain.cells();
+        int samples = 100_000;
         int[] counts = new int[4];
-        for (int i = 0; i < 4000; i++) {
+        for (int i = 0; i < samples; i++) {
             Tetromino item = generator.apply(plain);
             assertEquals(ItemType.LINE_CLEAR, item.itemType());
-            assertArrayEquals(plain.cells(), item.cells());
-            counts[item.itemColumn()]++;
+            int marked = 0;
+            for (int index = 0; index < cells.length; index++) {
+                if (item.hasItemAt(cells[index][0], cells[index][1])) {
+                    counts[index]++;
+                    marked++;
+                }
+            }
+            assertEquals(1, marked);
         }
-        for (int count : counts) assertTrue(count > 800 && count < 1200);
+        int expected = samples / 4;
+        for (int count : counts) {
+            assertTrue(Math.abs(count - expected) <= expected * 0.05,
+                    () -> type + " 부착 위치의 선택 횟수: " + count + ", 기대 횟수: " + expected);
+        }
+        System.out.printf("%s L positions: %d, %d, %d, %d / %d%n",
+                type, counts[0], counts[1], counts[2], counts[3], samples);
         assertEquals("L", ItemType.LINE_CLEAR.symbol());
         assertEquals("줄 삭제 (L)", ItemType.LINE_CLEAR.displayName());
     }

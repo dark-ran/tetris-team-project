@@ -13,6 +13,7 @@ import tetris.rule.PieceRules;
 
 /** 화면과 타이머에 의존하지 않고 행동과 진행 상태를 처리한다. 호출은 한 실행 흐름에서 한다. */
 public final class GameEngine {
+    public static final int ROWS_PER_ITEM = 10;
     private final Board board = new Board();
     private final Supplier<PieceQueue> pieceQueueFactory;
     private final PieceSpawnPolicy spawnPolicy;
@@ -173,7 +174,7 @@ public final class GameEngine {
         int previousClearedRows = totalClearedRows;
         totalClearedRows += clearedRows;
         if (mode == GameMode.ITEM) {
-            pendingItems += totalClearedRows / 10 - previousClearedRows / 10;
+            pendingItems += totalClearedRows / ROWS_PER_ITEM - previousClearedRows / ROWS_PER_ITEM;
         }
         boolean spawned = spawnNextPiece();
         return result(true, droppedRows, clearedRows, true, spawned, previousPhase);
