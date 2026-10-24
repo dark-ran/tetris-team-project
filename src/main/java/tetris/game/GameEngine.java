@@ -22,6 +22,7 @@ public final class GameEngine {
     private int currentRow;
     private int currentColumn;
     private GamePhase phase = GamePhase.READY;
+    private GameMode mode = GameMode.NORMAL;
     private long score;
     private int level = 1;
     private int spawnedPieces;
@@ -49,6 +50,11 @@ public final class GameEngine {
 
     /** 보드·점수·누적 수치를 초기화하고 첫 블록을 생성한다. 생성 실패 시 게임오버이다. */
     public void newGame() {
+        newGame(GameMode.NORMAL);
+    }
+
+    public void newGame(GameMode mode) {
+        Objects.requireNonNull(mode);
         PieceQueue newQueue = Objects.requireNonNull(pieceQueueFactory.get(), "생성한 블록 목록이 필요합니다.");
         board.reset();
         pieceQueue = newQueue;
@@ -57,6 +63,7 @@ public final class GameEngine {
         level = 1;
         spawnedPieces = 0;
         totalClearedRows = 0;
+        this.mode = mode;
         phase = GamePhase.RUNNING;
         spawnNextPiece();
     }
@@ -91,7 +98,7 @@ public final class GameEngine {
         return new GameState(board, currentPiece, currentRow, currentColumn,
                 pieceQueue == null ? List.of() : pieceQueue.previewPieces(), phase, score, level,
                 spawnedPieces, totalClearedRows, currentPiece == null ? currentRow
-                        : currentRules.movement().landingRow(board, currentPiece, currentRow, currentColumn));
+                        : currentRules.movement().landingRow(board, currentPiece, currentRow, currentColumn), mode);
     }
 
     public boolean isGameOver() {

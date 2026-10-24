@@ -13,6 +13,7 @@ public final class GameState {
     private final int currentColumn;
     private final List<Tetromino> upcomingPieces;
     private final int landingRow;
+    private final GameMode mode;
     private final GamePhase phase;
     private final long score;
     private final int level;
@@ -21,13 +22,14 @@ public final class GameState {
 
     GameState(Board board, Tetromino currentPiece, int currentRow, int currentColumn,
             List<Tetromino> nextPieces, GamePhase phase, long score, int level,
-            int spawnedPieces, int totalClearedRows, int landingRow) {
+            int spawnedPieces, int totalClearedRows, int landingRow, GameMode mode) {
         this.board = board.copy();
         this.currentPiece = currentPiece;
         this.currentRow = currentRow;
         this.currentColumn = currentColumn;
         this.upcomingPieces = List.copyOf(nextPieces);
         this.landingRow = landingRow;
+        this.mode = mode;
         this.phase = phase;
         this.score = score;
         this.level = level;
@@ -62,6 +64,7 @@ public final class GameState {
 
     public List<Tetromino> upcomingPieces() { return upcomingPieces; }
     public int landingRow() { return landingRow; }
+    public GameMode mode() { return mode; }
 
     /** 조회 시점의 게임 진행 상태. */
     public GamePhase phase() {
