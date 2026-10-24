@@ -50,6 +50,22 @@ jacocoTestReport {
     }
 }
 
+// Req2 중간평가: 직접 작성한 전체 실행 코드의 줄 커버리지 50% 이상.
+// UI와 Main도 포함하며, 기존 핵심 클래스별 70% 검사와 함께 실행한다.
+jacocoTestCoverageVerification {
+    dependsOn test
+    violationRules {
+        rule {
+            limit {
+                counter = 'LINE'
+                value = 'COVEREDRATIO'
+                minimum = 0.50
+            }
+        }
+    }
+}
+check.dependsOn jacocoTestCoverageVerification
+
 // 이번에 구현한 보드와 블록 네 클래스는 각각 실행 코드 줄의 70% 이상을 테스트한다.
 def boardAndPieceCoverageVerification = tasks.register(
         'boardAndPieceCoverageVerification', JacocoCoverageVerification) {
@@ -161,3 +177,52 @@ tasks.register('verifyImports', JavaExec) {
             (sourceSets.test.compileClasspath + sourceSets.reviewIntegration.compileClasspath).asPath
 }
 tasks.named('check') { dependsOn tasks.named('verifyImports') }
+
+tasks.register('prepareMacosInput', Sync) {
+    into layout.buildDirectory.dir('packaging/macos/input')
+    from tasks.named('jar')
+    from configurations.runtimeClasspath
+}
+
+tasks.register('packageMacos', Exec) {
+    description = 'Builds a double-clickable macOS app with its icon and Java runtime, then zips it.'
+    group = 'distribution'
+    dependsOn tasks.named('prepareMacosInput')
+    doFirst {
+        if (!System.getProperty('os.name').toLowerCase(Locale.ROOT).contains('mac')) {
+            throw new GradleException('packageMacos must run on macOS with JDK 21.')
+        }
+        def packageDirectory = layout.buildDirectory.dir('macos').get().asFile
+        delete packageDirectory
+        commandLine '/bin/bash', file('packaging/macos/package.sh').absolutePath,
+                javaToolchains.launcherFor(java.toolchain).get().metadata.installationPath.asFile.absolutePath,
+                layout.buildDirectory.dir('packaging/macos/input').get().asFile.absolutePath,
+                tasks.named('jar').get().archiveFileName.get(), packageDirectory.absolutePath
+    }
+}
+
+ 
+// Windows packages are reproducible build outputs, not version-controlled binaries.
+tasks.register('prepareWindowsInput', Sync) {
+    into layout.buildDirectory.dir('packaging/windows/input')
+    from tasks.named('jar')
+    from configurations.runtimeClasspath
+}
+
+tasks.register('packageWindows', Exec) {
+    description = 'Builds a Windows x64 executable with a bundled Java 21 runtime and ZIP archive.'
+    group = 'distribution'
+    dependsOn tasks.named('prepareWindowsInput')
+    doFirst {
+        if (!System.getProperty('os.name').toLowerCase(Locale.ROOT).contains('windows')) {
+            throw new GradleException('packageWindows must run on Windows x64 with JDK 21.')
+        }
+        def packageDirectory = layout.buildDirectory.dir('windows').get().asFile
+        delete packageDirectory
+        commandLine 'powershell.exe', '-NoProfile', '-ExecutionPolicy', 'Bypass',
+                '-File', file('packaging/windows/package.ps1').absolutePath,
+                javaToolchains.launcherFor(java.toolchain).get().metadata.installationPath.asFile.absolutePath,
+                layout.buildDirectory.dir('packaging/windows/input').get().asFile.absolutePath,
+                tasks.named('jar').get().archiveFileName.get(), packageDirectory.absolutePath
+    }
+}
