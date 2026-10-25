@@ -2,6 +2,7 @@ package tetris.ui;
 
 import java.awt.BasicStroke;
 import java.awt.Color;
+import java.awt.Font;
 import java.awt.Graphics;
 import java.awt.Graphics2D;
 import java.awt.Polygon;
@@ -25,6 +26,7 @@ final class PieceStyle {
     private PieceStyle() { }
 
     static Color colorFor(PieceType type, ColorVisionMode mode) {
+        if (type == PieceType.SINGLE) return new Color(0xFFFFFF);
         return new Color(PALETTES.get(mode)[type.ordinal()]);
     }
 
@@ -36,6 +38,14 @@ final class PieceStyle {
             Shape originalClip = g.getClip();
             Color fill = colorFor(type, mode);
             g.setColor(fill); g.fillRect(x, y, size, size);
+            // Item-only single cell is identified by a character even when patterns are disabled.
+            if (type == PieceType.SINGLE) {
+                g.setColor(Color.BLACK);
+                g.setFont(new Font(Font.SANS_SERIF, Font.BOLD, Math.max(1, size * 3 / 4)));
+                var metrics = g.getFontMetrics();
+                g.drawString("1", x + (size - metrics.stringWidth("1")) / 2,
+                        y + (size - metrics.getHeight()) / 2 + metrics.getAscent());
+            }
             if (patterns && size >= 10) {
                 g.clipRect(x + 2, y + 2, size - 4, size - 4);
                 g.setColor(patternColor(fill));

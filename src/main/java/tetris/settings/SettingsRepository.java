@@ -12,6 +12,7 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Properties;
+import tetris.game.Difficulty;
 
 /**
  * Handles persistent storage of game settings in a user-specific directory.
@@ -62,6 +63,7 @@ public class SettingsRepository {
         properties.setProperty("color.blind.mode", String.valueOf(settings.colorBlindMode()));
         properties.setProperty("color.vision.mode", settings.colorVisionMode().name());
         properties.setProperty("piece.patterns.enabled", String.valueOf(settings.piecePatternsEnabled()));
+        properties.setProperty("difficulty", settings.difficulty().name());
 
         for (Map.Entry<String, Integer> entry : settings.keyBindings().entrySet()) {
             properties.setProperty("key." + entry.getKey(), String.valueOf(entry.getValue()));
@@ -131,6 +133,12 @@ public class SettingsRepository {
                 throw new IllegalArgumentException("Invalid pattern setting");
             patterns = Boolean.parseBoolean(patternsValue.trim());
         }
-        return new GameSettings(preset, mode, patterns, keyBindings);
+        Difficulty difficulty = Difficulty.NORMAL;
+        try {
+            difficulty = Difficulty.valueOf(properties.getProperty("difficulty", "NORMAL").trim());
+        } catch (IllegalArgumentException ignored) {
+            // An unknown/new difficulty must not discard the user's other saved settings.
+        }
+        return new GameSettings(preset, mode, patterns, keyBindings, difficulty);
     }
 }

@@ -11,6 +11,7 @@ import javax.swing.JComponent;
 import javax.swing.JPanel;
 import javax.swing.SwingUtilities;
 import tetris.game.GameAction;
+import tetris.game.Difficulty;
 import tetris.game.GameActionResult;
 import tetris.game.GameEngine;
 import tetris.game.GamePhase;
@@ -116,7 +117,7 @@ public class AppController {
         gameScreen.setMenuActions(this::resumeGame, this::showSettings, this::showStartMenu, this::exit);
         if (settingsService != null) {
             settingsScreen.setOnSaveValues(values -> updateSettings(
-                    new GameSettings(values.preset(), values.colorVisionMode(), values.patternsEnabled(), values.keys())));
+                    new GameSettings(values.preset(), values.colorVisionMode(), values.patternsEnabled(), values.keys(), values.difficulty())));
             settingsScreen.setOnWindowSizePreview(this::previewWindowSize);
             settingsScreen.setOnRestoreDefaults(this::restoreDefaultsFromSettingsScreen);
         }
@@ -157,7 +158,7 @@ public class AppController {
         loop.stop();
         gameScreen.hideMenu();
         settingsFromGame = false;
-        engine.newGame();
+        engine.newGame(settingsService == null ? Difficulty.NORMAL : settingsService.current().difficulty());
         gameOverHandled = false;
         awaitingScoreName = false;
         lastRegisteredScore = null;
@@ -245,7 +246,11 @@ public class AppController {
     private void updateProgress(long score) {
         GameState current = engine.state();
         engine.updateScoreAndLevel(score, speedSystem.level(current.spawnedPieces(), current.totalClearedRows()));
-        long nextInterval = speedSystem.gravityIntervalMillis(current.spawnedPieces(), current.totalClearedRows());
+        long nextInterval = speedSystem.gravityIntervalMillis(
+        current.spawnedPieces(),
+        current.totalClearedRows(),
+        engine.difficulty());
+        
         // 입력마다 타이머를 재설정하면 낙하가 지연되므로 간격 변경 때만 적용
         if (nextInterval != interval) {
             interval = nextInterval;

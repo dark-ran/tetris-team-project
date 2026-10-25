@@ -8,6 +8,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import tetris.game.GameAction;
+import tetris.game.Difficulty;
 
 /**
  * Settings data value object.
@@ -42,6 +43,7 @@ public final class GameSettings {
     private final ColorVisionMode colorVisionMode;
     private final boolean piecePatternsEnabled;
     private final Map<String, Integer> keyBindings;
+    private final Difficulty difficulty;
 
     /**
      * Creates default game settings.
@@ -64,6 +66,11 @@ public final class GameSettings {
 
     public GameSettings(int windowSizePreset, ColorVisionMode mode, boolean patterns,
             Map<String, Integer> keyBindings) {
+        this(windowSizePreset, mode, patterns, keyBindings, Difficulty.NORMAL);
+    }
+
+    public GameSettings(int windowSizePreset, ColorVisionMode mode, boolean patterns,
+            Map<String, Integer> keyBindings, Difficulty difficulty) {
         if (!isValidPreset(windowSizePreset)) {
             throw new IllegalArgumentException("Invalid window size preset: " + windowSizePreset
                     + ". Expected between " + PRESET_SMALL + " and " + PRESET_LARGE);
@@ -74,6 +81,13 @@ public final class GameSettings {
         this.colorVisionMode = Objects.requireNonNull(mode, "colorVisionMode must not be null");
         this.piecePatternsEnabled = patterns;
         this.keyBindings = normalizeKeyBindings(keyBindings);
+        this.difficulty = Objects.requireNonNull(difficulty, "difficulty must not be null");
+    }
+
+    public Difficulty difficulty() { return difficulty; }
+
+    public GameSettings withDifficulty(Difficulty next) {
+        return new GameSettings(windowSizePreset, colorVisionMode, piecePatternsEnabled, keyBindings, next);
     }
 
     /** Completes partial bindings before validating; Esc always opens the game menu. */
@@ -162,7 +176,7 @@ public final class GameSettings {
     }
 
     public GameSettings withWindowSizePreset(int preset) {
-        return new GameSettings(preset, colorVisionMode, piecePatternsEnabled, keyBindings);
+        return new GameSettings(preset, colorVisionMode, piecePatternsEnabled, keyBindings, difficulty);
     }
 
     public GameSettings withColorBlindMode(boolean enabled) {
@@ -170,15 +184,15 @@ public final class GameSettings {
     }
 
     public GameSettings withColorVisionMode(ColorVisionMode mode) {
-        return new GameSettings(windowSizePreset, mode, mode.defaultPatternsEnabled(), keyBindings);
+        return new GameSettings(windowSizePreset, mode, mode.defaultPatternsEnabled(), keyBindings, difficulty);
     }
 
     public GameSettings withPiecePatternsEnabled(boolean enabled) {
-        return new GameSettings(windowSizePreset, colorVisionMode, enabled, keyBindings);
+        return new GameSettings(windowSizePreset, colorVisionMode, enabled, keyBindings, difficulty);
     }
 
     public GameSettings withKeyBindings(Map<String, Integer> bindings) {
-        return new GameSettings(windowSizePreset, colorVisionMode, piecePatternsEnabled, bindings);
+        return new GameSettings(windowSizePreset, colorVisionMode, piecePatternsEnabled, bindings, difficulty);
     }
 
     @Override
@@ -188,12 +202,13 @@ public final class GameSettings {
         return windowSizePreset == that.windowSizePreset
                 && colorVisionMode == that.colorVisionMode
                 && piecePatternsEnabled == that.piecePatternsEnabled
+                && difficulty == that.difficulty
                 && Objects.equals(keyBindings, that.keyBindings);
     }
 
     @Override
     public int hashCode() {
-        return Objects.hash(windowSizePreset, colorVisionMode, piecePatternsEnabled, keyBindings);
+        return Objects.hash(windowSizePreset, colorVisionMode, piecePatternsEnabled, keyBindings, difficulty);
     }
 
     @Override
@@ -203,6 +218,7 @@ public final class GameSettings {
                 " (" + windowSizePresetLabel() + ")" +
                 ", colorVisionMode=" + colorVisionMode +
                 ", piecePatternsEnabled=" + piecePatternsEnabled +
+                ", difficulty=" + difficulty +
                 ", keyBindings=" + keyBindings +
                 '}';
     }
