@@ -19,7 +19,7 @@ class GameScreenStateTest {
     @Test void everyNextPieceReplacesThePreviousPreviewAndScoreAndLevelFollowTheSnapshot() throws Exception {
         SwingUtilities.invokeAndWait(() -> {
             GameScreen screen = new GameScreen(() -> {}, () -> {}, () -> {});
-            for (PieceType type : PieceType.values()) {
+            for (PieceType type : PieceType.standardTypes()) {
                 GameEngine engine = new GameEngine(new Random(0) {
                     @Override public int nextInt(int bound) { return type.ordinal(); }
                 });

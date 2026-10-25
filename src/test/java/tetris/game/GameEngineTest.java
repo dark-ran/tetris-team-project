@@ -85,7 +85,7 @@ class GameEngineTest {
     }
 
     @ParameterizedTest(name = "{0}의 가장 위쪽 칸은 보드 첫 행에서 생성")
-    @EnumSource(PieceType.class)
+    @EnumSource(value = PieceType.class, names = {"I", "O", "T", "S", "Z", "J", "L"})
     void everyPieceStartsAtTheAgreedPosition(PieceType type) {
         GameEngine engine = engine(type);
         engine.newGame();

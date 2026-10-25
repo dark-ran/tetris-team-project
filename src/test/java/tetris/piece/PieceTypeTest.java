@@ -18,7 +18,7 @@ class PieceTypeTest {
     }
 
     @ParameterizedTest(name = "칸 저장값 {0}은 블록 종류로 변환할 수 없음")
-    @ValueSource(ints = {Integer.MIN_VALUE, -1, 0, 8, Integer.MAX_VALUE})
+    @ValueSource(ints = {Integer.MIN_VALUE, -1, 0, 9, Integer.MAX_VALUE})
     void rejectsEmptyAndUnknownCellValues(int cellValue) {
         assertThrows(IllegalArgumentException.class, () -> PieceType.fromCellValue(cellValue));
     }

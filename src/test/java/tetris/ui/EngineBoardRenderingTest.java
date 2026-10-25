@@ -19,7 +19,7 @@ import tetris.piece.PieceType;
 /** 실제 엔진에서 생성·고정한 일곱 블록의 위치와 종류별 색상을 화면에서 검증한다. */
 class EngineBoardRenderingTest {
     @ParameterizedTest
-    @EnumSource(PieceType.class)
+    @EnumSource(value = PieceType.class, names = {"I", "O", "T", "S", "Z", "J", "L"})
     void spawnedAndLockedCellsMatchEngineState(PieceType type) throws Exception {
         SwingUtilities.invokeAndWait(() -> {
             Random selectedType = new Random(0) {

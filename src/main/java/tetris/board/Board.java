@@ -25,7 +25,7 @@ public final class Board {
 
     /**
      * 회전 기준 정사각형의 왼쪽 위를 지정한 행·열에 놓을 수 있는지 확인한다.
-     * 블록이 차지하는 네 칸만 검사하며, 한 칸이라도 보드 밖이거나 이미 채워져 있으면 false이다.
+     * 블록이 차지하는 칸만 검사하며, 한 칸이라도 보드 밖이거나 이미 채워져 있으면 false이다.
      */
     public boolean canPlace(Tetromino piece, int row, int column) {
         Objects.requireNonNull(piece, "배치할 블록이 필요합니다.");
@@ -72,7 +72,7 @@ public final class Board {
         return clearedRows;
     }
 
-    /** 빈 칸은 0, 고정된 블록은 1~7인 보드 사본을 반환한다. 현재 이동 중인 블록은 포함하지 않는다. */
+    /** 빈 칸은 0, 고정된 블록은 PieceType의 칸 저장값인 보드 사본을 반환한다. */
     public int[][] snapshot() {
         int[][] copiedCells = new int[ROWS][];
         for (int row = 0; row < ROWS; row++) {
