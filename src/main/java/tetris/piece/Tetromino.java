@@ -53,9 +53,9 @@ public final class Tetromino {
         this.itemColumn = itemColumn;
     }
 
-    /** P 아이템의 실제 한 칸 모양. */
+    /** 일반 낙하 규칙을 사용하는 1칸 아이템. */
     public static Tetromino singleCell() {
-        return new Tetromino(PieceType.SINGLE);
+        return new Tetromino(PieceType.SINGLE, 1, new int[][] {{0, 0}}, ItemType.SINGLE, 0, 0);
     }
 
     public boolean isSingleCell() {

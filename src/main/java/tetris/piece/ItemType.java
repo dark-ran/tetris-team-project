@@ -6,7 +6,8 @@ public enum ItemType {
     LINE_CLEAR("L", "줄 삭제 (L)"),
     WEIGHT("W", "무게추 (W)", true, true),
     BOMB("B", "폭탄 (B)", true, false),
-    GOLDEN("G", "황금 블록 (G)", false, true, 5);
+    GOLDEN("G", "황금 블록 (G)", false, true, 5),
+    SINGLE("1", "1칸 블록 (1)", true, false);
 
     private final String symbol;
     private final String displayName;
