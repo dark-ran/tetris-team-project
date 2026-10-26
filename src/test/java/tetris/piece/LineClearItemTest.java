@@ -2,6 +2,7 @@ package tetris.piece;
 
 import static org.junit.jupiter.api.Assertions.*;
 import java.util.Random;
+import java.util.Arrays;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.EnumSource;
@@ -10,7 +11,7 @@ class LineClearItemTest {
     @ParameterizedTest @EnumSource(PieceType.class)
     void markerStaysOnItsCellThroughFourRotationsWithoutChangingOriginal(PieceType type) {
         Tetromino plain = new Tetromino(type);
-        for (int index = 0; index < 4; index++) {
+        for (int index = 0; index < plain.cells().length; index++) {
             Tetromino original = plain.withItem(ItemType.LINE_CLEAR, index);
             Tetromino rotated = original;
             for (int turn = 0; turn < 4; turn++) {
@@ -40,7 +41,7 @@ class LineClearItemTest {
         Tetromino plain = new Tetromino(type);
         int[][] cells = plain.cells();
         int samples = 100_000;
-        int[] counts = new int[4];
+        int[] counts = new int[cells.length];
         for (int i = 0; i < samples; i++) {
             Tetromino item = generator.apply(plain);
             assertEquals(ItemType.LINE_CLEAR, item.itemType());
@@ -53,13 +54,12 @@ class LineClearItemTest {
             }
             assertEquals(1, marked);
         }
-        int expected = samples / 4;
+        int expected = samples / cells.length;
         for (int count : counts) {
             assertTrue(Math.abs(count - expected) <= expected * 0.05,
                     () -> type + " 부착 위치의 선택 횟수: " + count + ", 기대 횟수: " + expected);
         }
-        System.out.printf("%s L positions: %d, %d, %d, %d / %d%n",
-                type, counts[0], counts[1], counts[2], counts[3], samples);
+        System.out.printf("%s L positions: %s / %d%n", type, Arrays.toString(counts), samples);
         assertEquals("L", ItemType.LINE_CLEAR.symbol());
         assertEquals("줄 삭제 (L)", ItemType.LINE_CLEAR.displayName());
     }

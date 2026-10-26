@@ -2,11 +2,13 @@ package tetris.game;
 
 import java.util.List;
 import java.util.Objects;
+import java.util.function.Function;
 import java.util.function.Supplier;
 import java.util.function.UnaryOperator;
 import java.util.random.RandomGenerator;
 import tetris.board.Board;
 import tetris.piece.PieceQueue;
+import tetris.piece.PieceType;
 import tetris.piece.ItemGenerator;
 import tetris.piece.Tetromino;
 import tetris.rule.PieceRules;
@@ -15,7 +17,7 @@ import tetris.rule.PieceRules;
 public final class GameEngine {
     public static final int ROWS_PER_ITEM = 10;
     private final Board board = new Board();
-    private final Supplier<PieceQueue> pieceQueueFactory;
+    private final Function<Difficulty, PieceQueue> pieceQueueFactory;
     private final PieceSpawnPolicy spawnPolicy;
     private final UnaryOperator<Tetromino> itemGenerator;
     private PieceQueue pieceQueue;
@@ -26,6 +28,7 @@ public final class GameEngine {
     private int currentColumn;
     private GamePhase phase = GamePhase.READY;
     private GameMode mode = GameMode.NORMAL;
+    private Difficulty difficulty = Difficulty.NORMAL;
     private long score;
     private int level = 1;
     private int spawnedPieces;
@@ -50,24 +53,51 @@ public final class GameEngine {
     /** 아이템 생성 방식을 바꾸어도 등장 시점과 진행 규칙은 유지된다. */
     public GameEngine(Supplier<PieceQueue> pieceQueueFactory, PieceSpawnPolicy spawnPolicy,
             UnaryOperator<Tetromino> itemGenerator) {
+        this(wrapSupplier(pieceQueueFactory), spawnPolicy, itemGenerator);
+    }
+
+    private GameEngine(Function<Difficulty, PieceQueue> pieceQueueFactory, PieceSpawnPolicy spawnPolicy,
+            UnaryOperator<Tetromino> itemGenerator) {
         this.pieceQueueFactory = Objects.requireNonNull(pieceQueueFactory, "블록 목록 생성기가 필요합니다.");
         this.spawnPolicy = Objects.requireNonNull(spawnPolicy, "블록 시작 위치 규칙이 필요합니다.");
         this.itemGenerator = Objects.requireNonNull(itemGenerator, "아이템 생성기가 필요합니다.");
     }
 
-    private static Supplier<PieceQueue> queueFactory(RandomGenerator randomGenerator) {
+    private static Function<Difficulty, PieceQueue> queueFactory(RandomGenerator randomGenerator) {
         Objects.requireNonNull(randomGenerator, "무작위 선택기가 필요합니다.");
-        return () -> new PieceQueue(randomGenerator);
+        return difficulty -> new PieceQueue(randomGenerator, PieceQueue.DEFAULT_PREVIEW_COUNT, difficulty);
+    }
+
+    private static Function<Difficulty, PieceQueue> wrapSupplier(Supplier<PieceQueue> supplier) {
+        Objects.requireNonNull(supplier, "블록 목록 생성기가 필요합니다.");
+        return difficulty -> supplier.get();
+    }
+
+    public Difficulty difficulty() { return difficulty; }
+
+    public void replaceLastPreviewPiece(PieceType type) {
+        Objects.requireNonNull(type, "블록 종류가 필요합니다.");
+        if (pieceQueue == null) throw new IllegalStateException("게임이 시작되지 않았습니다.");
+        pieceQueue.replaceLastPreview(type);
     }
 
     /** 보드·점수·누적 수치를 초기화하고 첫 블록을 생성한다. 생성 실패 시 게임오버이다. */
     public void newGame() {
-        newGame(GameMode.NORMAL);
+        newGame(GameMode.NORMAL, Difficulty.NORMAL);
+    }
+
+    public void newGame(Difficulty difficulty) {
+        newGame(GameMode.NORMAL, difficulty);
     }
 
     public void newGame(GameMode mode) {
+        newGame(mode, Difficulty.NORMAL);
+    }
+
+    public void newGame(GameMode mode, Difficulty difficulty) {
         Objects.requireNonNull(mode);
-        PieceQueue newQueue = Objects.requireNonNull(pieceQueueFactory.get(), "생성한 블록 목록이 필요합니다.");
+        Objects.requireNonNull(difficulty);
+        PieceQueue newQueue = Objects.requireNonNull(pieceQueueFactory.apply(difficulty), "생성한 블록 목록이 필요합니다.");
         board.reset();
         pieceQueue = newQueue;
         currentPiece = null;
@@ -77,6 +107,8 @@ public final class GameEngine {
         totalClearedRows = 0;
         pendingItems = 0;
         this.mode = mode;
+        this.difficulty = difficulty;
+        contacted = false;
         phase = GamePhase.RUNNING;
         spawnNextPiece();
     }
@@ -111,7 +143,7 @@ public final class GameEngine {
         return new GameState(board, currentPiece, currentRow, currentColumn,
                 pieceQueue == null ? List.of() : pieceQueue.previewPieces(), phase, score, level,
                 spawnedPieces, totalClearedRows, currentPiece == null ? currentRow
-                        : currentRules.movement().landingRow(board, currentPiece, currentRow, currentColumn), mode);
+                        : currentRules.movement().landingRow(board, currentPiece, currentRow, currentColumn), mode, difficulty);
     }
 
     public boolean isGameOver() {

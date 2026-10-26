@@ -14,6 +14,7 @@ public final class GameState {
     private final List<Tetromino> upcomingPieces;
     private final int landingRow;
     private final GameMode mode;
+    private final Difficulty difficulty;
     private final GamePhase phase;
     private final long score;
     private final int level;
@@ -22,7 +23,7 @@ public final class GameState {
 
     GameState(Board board, Tetromino currentPiece, int currentRow, int currentColumn,
             List<Tetromino> nextPieces, GamePhase phase, long score, int level,
-            int spawnedPieces, int totalClearedRows, int landingRow, GameMode mode) {
+            int spawnedPieces, int totalClearedRows, int landingRow, GameMode mode, Difficulty difficulty) {
         this.board = board.copy();
         this.currentPiece = currentPiece;
         this.currentRow = currentRow;
@@ -30,6 +31,7 @@ public final class GameState {
         this.upcomingPieces = List.copyOf(nextPieces);
         this.landingRow = landingRow;
         this.mode = mode;
+        this.difficulty = java.util.Objects.requireNonNull(difficulty);
         this.phase = phase;
         this.score = score;
         this.level = level;
@@ -65,6 +67,7 @@ public final class GameState {
     public List<Tetromino> upcomingPieces() { return upcomingPieces; }
     public int landingRow() { return landingRow; }
     public GameMode mode() { return mode; }
+    public Difficulty difficulty() { return difficulty; }
 
     /** 조회 시점의 게임 진행 상태. */
     public GamePhase phase() {

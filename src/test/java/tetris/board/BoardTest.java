@@ -31,7 +31,7 @@ class BoardTest {
     }
 
     @ParameterizedTest(name = "{0}의 네 방향을 검사하고 같은 칸 저장값으로 고정")
-    @EnumSource(PieceType.class)
+    @EnumSource(value = PieceType.class, names = {"I", "O", "T", "S", "Z", "J", "L"})
     void allPieceOrientationsCanBePlacedAndStored(PieceType type) {
         Tetromino piece = new Tetromino(type);
         for (int rotationCount = 0; rotationCount < 4; rotationCount++) {
@@ -40,7 +40,7 @@ class BoardTest {
             assertEquals(0, occupiedCellCount(board));
             board.lock(piece, 5, 3);
 
-            assertEquals(4, occupiedCellCount(board));
+            assertEquals(piece.cells().length, occupiedCellCount(board));
             for (int[] cell : piece.cells()) {
                 assertEquals(type.cellValue(), board.snapshot()[5 + cell[0]][3 + cell[1]]);
             }

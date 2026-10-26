@@ -19,7 +19,7 @@ class ColorVisionRenderingTest {
     @ParameterizedTest @EnumSource(ColorVisionMode.class)
     void paletteAndPatternStayConsistentAcrossRotationFixedCellsAndNextPreview(ColorVisionMode mode) throws Exception {
         SwingUtilities.invokeAndWait(() -> {
-            for (PieceType type : PieceType.values()) {
+            for (PieceType type : PieceType.standardTypes()) {
                 GameEngine engine = new GameEngine(new Random(0) {
                     @Override public int nextInt(int bound) { return type.ordinal(); }
                 });
@@ -64,7 +64,7 @@ class ColorVisionRenderingTest {
     @Test void sevenSparsePatternsRemainDifferentAtSmallCellSizes() {
         for (int size : new int[] {12, 15, 22}) {
             HashSet<String> masks = new HashSet<>();
-            for (PieceType type : PieceType.values()) {
+            for (PieceType type : PieceType.standardTypes()) {
                 BufferedImage image = new BufferedImage(size, size, BufferedImage.TYPE_INT_RGB);
                 Graphics2D g = image.createGraphics();
                 try { PieceStyle.paintCell(g, type, 0, 0, size, ColorVisionMode.MONOCHROME, true); }

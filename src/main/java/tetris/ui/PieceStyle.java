@@ -10,8 +10,8 @@ import java.awt.Polygon;
 import java.awt.RenderingHints;
 import java.awt.Shape;
 import java.util.Map;
-import tetris.piece.PieceType;
 import tetris.piece.ItemType;
+import tetris.piece.PieceType;
 import tetris.settings.ColorVisionMode;
 
 /** Shared palettes and sparse cell patterns for the board and every preview. */
@@ -28,6 +28,7 @@ final class PieceStyle {
     private PieceStyle() { }
 
     static Color colorFor(PieceType type, ColorVisionMode mode) {
+        if (type == PieceType.SINGLE) return new Color(0xFFFFFF);
         return new Color(PALETTES.get(mode)[type.ordinal()]);
     }
 
@@ -39,6 +40,13 @@ final class PieceStyle {
             Shape originalClip = g.getClip();
             Color fill = colorFor(type, mode);
             g.setColor(fill); g.fillRect(x, y, size, size);
+            if (type == PieceType.SINGLE) {
+                g.setColor(Color.BLACK);
+                g.setFont(new Font(Font.SANS_SERIF, Font.BOLD, Math.max(1, size * 3 / 4)));
+                FontMetrics metrics = g.getFontMetrics();
+                g.drawString("1", x + (size - metrics.stringWidth("1")) / 2,
+                        y + (size - metrics.getHeight()) / 2 + metrics.getAscent());
+            }
             if (patterns && size >= 10) {
                 g.clipRect(x + 2, y + 2, size - 4, size - 4);
                 g.setColor(patternColor(fill));
@@ -68,6 +76,7 @@ final class PieceStyle {
                         g.drawPolygon(new Polygon(new int[] {x + mid, x + size - edge, x + mid, x + edge},
                                 new int[] {y + edge, y + mid, y + size - edge, y + mid}, 4));
                     }
+                    case SINGLE -> { }
                 }
             }
             g.setClip(originalClip); g.setStroke(new BasicStroke(1f));
@@ -75,7 +84,7 @@ final class PieceStyle {
         } finally { g.dispose(); }
     }
 
-    /** 색상과 무늬에 관계없이 아이템 문자를 같은 대비로 표시한다. */
+    /** 色상과 무늬에 관계없이 아이템 문자를 같은 대비로 표시한다. */
     static void paintItem(Graphics graphics, ItemType item, int x, int y, int size) {
         if (item == ItemType.NONE) return;
         Graphics2D g = (Graphics2D) graphics.create();

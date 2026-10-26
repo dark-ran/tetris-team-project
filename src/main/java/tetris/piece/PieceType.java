@@ -1,5 +1,7 @@
 package tetris.piece;
 
+import java.util.List;
+
 /** 테트로미노의 일곱 종류와 보드에서 사용하는 고정 칸 저장값. */
 public enum PieceType {
     I(1),
@@ -8,7 +10,13 @@ public enum PieceType {
     S(4),
     Z(5),
     J(6),
-    L(7);
+    L(7),
+    SINGLE(8);
+
+    /** Normal generation excludes item-only pieces. Existing cell values remain unchanged. */
+    public static List<PieceType> standardTypes() {
+        return List.of(I, O, T, S, Z, J, L);
+    }
 
     private final int cellValue;
 

@@ -121,7 +121,7 @@ public final class Board {
         return clearedRows;
     }
 
-    /** 빈 칸은 0, 고정된 블록은 1~7인 보드 사본을 반환한다. 현재 이동 중인 블록은 포함하지 않는다. */
+    /** 빈 칸은 0, 고정된 블록은 PieceType의 칸 저장값인 보드 사본을 반환한다. */
     public int[][] snapshot() {
         int[][] copiedCells = new int[ROWS][];
         for (int row = 0; row < ROWS; row++) {
