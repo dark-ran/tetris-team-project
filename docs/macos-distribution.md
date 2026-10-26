@@ -1,7 +1,6 @@
 # macOS 배포와 실행 확인
 
-Req1 18쪽은 아이콘이 있고 운영체제에서 더블클릭해 실행하는 패키지를 요구한다.
-Windows 또는 macOS 중 하나만 대상으로 해도 된다. macOS에서는 `.app`이 실행파일에 해당한다.
+현재 패키지 다운로드와 확인 결과는 [배포 안내](distribution.md), [통합 검증](verification.md)에 정리한다. macOS에서는 아이콘이 포함된 Tetris.app을 운영체제로 열어 실행한다.
 
 ## 만드는 방법
 

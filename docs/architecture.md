@@ -1,190 +1,75 @@
-# Architecture Proposal
+# 게임 구조와 아이템 확장
 
-> 이 문서는 프로젝트 구조에 대한 **초안/제안안**입니다.
-> 확정된 요구사항이 아니며 팀원 의견에 따라 변경할 수 있습니다.
+게임 규칙, 화면, 입력·타이머, 파일 저장을 분리한다. 게임 엔진은 Swing 창이나 저장 파일을 알지 않으며, 화면은 엔진 상태의 사본을 받아 그린다.
 
-## 1. 전체 구조 제안
+## 호출 흐름
 
-```text
-TetrisTeamProject/
-│
-├── build.gradle
-├── settings.gradle
-├── gradle.properties
-├── gradlew
-├── gradlew.bat
-│
-├── gradle/
-│   └── wrapper/
-│       ├── gradle-wrapper.jar
-│       └── gradle-wrapper.properties
-│
-├── .github/
-│   └── workflows/
-│       ├── ci.yml
-│       ├── package-windows.yml
-│       └── package-macos.yml
-│
-├── docs/
-│   ├── requirements.md
-│   ├── architecture.md
-│   ├── development.md
-│   └── decisions/
-│
-├── packaging/
-│   ├── windows/
-│   └── macos/
-│
-├── src/main/java/tetris/
-│   ├── Main.java
-│   ├── app/
-│   ├── board/
-│   ├── piece/
-│   ├── game/
-│   ├── rule/
-│   ├── loop/
-│   ├── input/
-│   ├── settings/
-│   ├── scoreboard/
-│   └── ui/
-│
-└── src/test/java/tetris/
-    ├── board/
-    ├── piece/
-    ├── game/
-    ├── rule/
-    ├── loop/
-    ├── input/
-    ├── settings/
-    ├── scoreboard/
-    └── ui/
+```mermaid
+flowchart TD
+  A[키보드 입력] --> B[InputHandler · GameAction]
+  C[GameLoop 자동 낙하] --> D[AppController]
+  B --> D
+  D --> E[GameEngine]
+  E --> F[GameActionResult · GameState]
+  F --> D
+  D --> G[ScoreSystem · SpeedSystem]
+  D --> H[GameScreen · BoardPreview · NextPiecePreview]
+  D --> I[SettingsService · ScoreBoardService]
+  I --> J[파일 저장소]
 ```
 
-위 디렉터리와 워크플로는 구현 계획이며, 실제 생성 여부는 작업 Issue/PR에서 관리한다.
+입력과 타이머는 Swing EDT에서 순서대로 처리한다. 엔진이 행동 결과를 반환하면 앱 제어가 점수·속도를 계산하고 화면을 갱신한다. 화면 상태는 AppState, 게임 진행은 GamePhase로 관리한다.
 
-## 2. 패키지별 역할 제안
-
-| 패키지 | 역할 |
-|---|---|
-| `app` | 애플리케이션 시작, 화면 전환 등 |
-| `board` | Board 상태, 충돌, Line Clear |
-| `piece` | Tetromino, 회전, 생성, Next Queue |
-| `game` | GameEngine, GameState, GameAction 등 게임 핵심 흐름 |
-| `rule` | 점수, 속도 증가 등 게임 규칙 |
-| `loop` | Tick 및 Game Loop |
-| `input` | 키 입력, 사용자 키 설정 반영 |
-| `settings` | 설정 데이터, 저장/복원 |
-| `scoreboard` | 점수 기록, 정렬, 저장/복원 |
-| `ui` | 시작 메뉴, 게임 화면, 설정, 스코어보드, 게임 오버 화면 |
-
-- 게임 규칙은 UI·OS와 분리하고, OS별 차이는 입력·저장·패키징 경계에서 처리한다.
-- 위 클래스와 계층은 제안이며 초기 구현에는 필요한 구성만 도입하고 기능 확장 시 분리한다.
-
-## 3. 게임 호출 구조 제안
-
-```text
-Keyboard
-   ↓
-InputHandler
-   ↓
-KeyMapper
-   ↓
-GameAction
-   ↓
-GameController
-   ↓
-GameEngine
-   ↓
-GameState
-   │
-   ├── Board
-   ├── Piece
-   ├── NextPieceQueue
-   ├── ScoreSystem
-   └── SpeedSystem
-   ↓
-GameSnapshot
-   ↓
-GameScreen
-```
-
-이 구조는 UI와 게임 핵심 로직을 직접 결합하지 않고 분리하기 위한 제안이다.
-
-자동 낙하도 `GameLoop/Timer → Tick → GameEngine → GameState → GameScreen` 흐름으로 처리한다. 사용자 입력과 Tick의 상태 변경 순서·스레드 정책은 구현 전에 결정한다. `GameSnapshot`은 도입하더라도 별도 상태 원본으로 사용하지 않는다.
-
-## 4. 설정 구조 제안
-
-```text
-SettingsScreen
-      ↓
-SettingsService
-      ↓
-SettingsRepository
-```
-
-- `SettingsScreen`: 설정 UI
-- `SettingsService`: 설정 변경/검증
-- `SettingsRepository`: 파일 저장 및 복원
-- 설정 파일은 설치 경로와 분리된 사용자별 저장 경로를 사용하고 파일 부재·읽기 오류를 처리한다.
-
-## 5. 스코어보드 구조 제안
-
-```text
-GameOverScreen
-      ↓
-ScoreBoardService
-      ↓
-ScoreRepository
-```
-
-- `GameOverScreen`: 이름 입력 및 게임 종료 UI
-- `ScoreBoardService`: 점수 등록, 순위 계산, Top 기록 관리
-- `ScoreRepository`: 파일 저장 및 복원
-- 스코어보드도 사용자별 저장 경로에 두며, OS가 달라도 동일한 데이터 형식을 사용한다.
-
-## 6. 상태 관리 제안
-
-화면 전환과 게임 진행 상태는 FSM(Finite State Machine) 형태로 관리하는 방안을 검토한다.
-
-예:
-
-```text
-AppState
-- START_MENU
-- GAME
-- SETTINGS
-- SCOREBOARD
-- EXIT
-
-GamePhase
-- RUNNING
-- PAUSED
-- GAME_OVER
-```
-
-이 부분은 확정사항이 아니며 실제 구현 규모를 보고 단순화할 수 있다. `PAUSED`에서는 자동 낙하가 멈추고 종료는 가능해야 하며, `GAME_OVER` 이후 이름 입력·스코어보드·메뉴 복귀 흐름을 연결한다.
-
-## 7. 역할 분담 초안
-
-| 구분 | 핵심 영역 | 주요 패키지 |
+| 영역 | 책임 | 주요 코드 |
 |---|---|---|
-| A | Board / Tetromino | `board`, `piece` |
-| B | Game Engine / Rules | `game`, `rule`, `loop` |
-| C | UI / Input | `ui`, `input` |
-| D | Application / Settings / ScoreBoard / Build | `app`, `settings`, `scoreboard`, Build/CI/배포 |
+| 보드 | 충돌, 고정 칸·아이템 속성, 행·영역 삭제, 상태 사본 | Board |
+| 블록 | 모양·회전·아이템 표시 위치, 난이도별 큐, 보상 종류 선택 | Tetromino, PieceQueue, ItemGenerator |
+| 엔진 | 이동·고정·삭제·새 블록·게임오버, 10줄 보상 | GameEngine, GameState, GameActionResult |
+| 규칙 | 이동 방식, 고정 효과, 점수 허용·소멸, 줄 삭제 배율 | PieceRules, PieceMovement, LockEffect, LineClearBonus |
+| 앱 제어 | 입력·자동 낙하 연결, 점수·속도 적용, 화면·저장 흐름 | AppController, GameLoop |
+| 화면 | 보드·미리보기·아이템 문자·애니메이션, 메뉴·설정·기록 | ui 패키지 |
+| 저장 | 설정·점수 검증, 파일 호환, 원자적 교체와 재시도 | settings, scoreboard 패키지 |
 
-- 실제 담당자는 팀 논의 후 결정한다.
-- 각 담당자는 자기 기능에 대한 테스트도 함께 작성한다.
-- 다른 담당자의 영역 수정이 필요한 경우 먼저 Issue 또는 팀 논의를 통해 공유한다.
-- 담당 구분은 코드 독점 권한이 아니며, 기능 단위 Issue에 담당자·리뷰어를 배정하고 업무량을 반복 주기마다 조정한다.
+## 아이템 정보를 한 객체로 전달
 
-## 8. 구조 관련 논의 필요 사항
+Tetromino에는 기본 종류뿐 아니라 실제 칸 좌표, 아이템 종류, 표시 위치가 있다. PieceQueue는 이 객체 전체를 보관한다. 미리보기와 실제 생성이 같은 정보를 사용하므로 L 부착 위치, 무게추의 6칸, 폭탄의 3칸, 1칸 모양이 유지된다.
 
-- `GameController`와 `GameEngine`을 별도로 둘지
-- `GameSnapshot`이 필요한지
-- Settings/ScoreBoard에 Service/Repository 계층을 모두 둘지
-- FSM을 사용할지
-- 패키지를 현재 수준으로 세분화할지 일부 통합할지
-- 각 팀원의 실제 담당 영역
-- Windows/macOS 저장 경로·입력 처리·CPU 아키텍처 및 OS별 패키징 경계
-- 자동 낙하 Tick과 입력 처리의 순서, 초기 구현에 필요한 최소 클래스
+Board는 고정 칸의 기본 값과 아이템 속성을 함께 보관한다. 복사·고정·줄 이동·영역 삭제·초기화에서도 두 정보를 함께 처리한다. 황금 블록은 고정된 뒤 다른 블록이 줄을 완성해도 배율을 적용할 수 있다.
+
+## 이동과 효과를 분리
+
+PieceRules는 다음 네 가지를 조합한다.
+
+- PieceMovement: 낙하·회전·좌우 이동·접촉 후 행동.
+- LockEffect: 고정 시 보드 변경, 삭제할 행, 효과 중심 조회.
+- awardsScore: 낙하와 삭제에 점수를 부여할지.
+- leavesPieceOnBoard: 고정 칸으로 남길지.
+
+일반·G·1은 기본 이동을 공유한다. L은 기본 이동에 지정 행 삭제 효과를 붙인다. W는 아래 칸을 제거하는 이동과 점수 없는 소멸을 사용한다. B는 회전을 막는 이동과 영역 삭제 효과를 사용한다. 엔진에 아이템별 switch를 추가하지 않고 등록한 규칙을 호출한다.
+
+## 고정과 보상 처리 순서
+
+1. 남기는 블록이면 보드에 고정한다.
+2. 고정 효과로 영역을 변경하고 삭제할 행을 구한다.
+3. 삭제 전 행의 G 속성으로 줄 삭제 배율을 구한다.
+4. 대상 행을 중복 없이 삭제하고 실제 줄 수를 누적한다.
+5. 새로 넘은 10줄 경계 수만큼 아이템을 예약한다.
+6. 기존 미리보기 블록을 생성하고 새 미리보기에 예약 아이템을 적용한다.
+7. 앱 제어가 낙하·줄 점수와 난이도별 속도를 반영하고 화면을 갱신한다.
+
+폭탄·무게추의 개별 칸 삭제는 줄 수 보상과 분리한다. 황금 배율은 줄 삭제 점수에만 적용한다.
+
+## 새 아이템 추가 절차
+
+1. ItemType에 문자와 표시 속성을 추가한다.
+2. Tetromino의 실제 모양 또는 기존 모양의 부착 방법을 정의한다.
+3. 공통 이동·효과로 충분하면 재사용하고, 다르면 PieceMovement 또는 LockEffect를 구현한다.
+4. PieceRules와 ItemGenerator에 등록한다.
+5. 보상 → 미리보기 → 실제 생성 → 발동·점수 → 재시작을 연결 테스트한다.
+6. 색각 모드와 경계·충돌·기존 아이템 상호작용을 확인하고 명세에 추가한다.
+
+## 설계에서 개선한 점과 남은 경계
+
+블록 종류만 전달하던 연결을 실제 모양·아이템 위치를 포함한 전달로 확장했다. 이동과 고정 효과를 분리하여 무게추·폭탄을 추가해도 기본 이동 코드를 복제하지 않도록 했다. 화면과 점수 저장도 같은 모드·난이도 정보를 사용한다.
+
+현재 줄 삭제 화면은 이전 상태와 새 상태를 비교해 삭제 전 장면을 복원한다. 새로운 복합 효과가 많아지면 엔진 결과에 삭제 행·효과 범위·연출 순서를 담은 사건 목록을 제공하는 편이 유지보수에 유리하다. 이는 다음 확장 시 검토할 개선이며 현재 게임의 동작은 [검증 결과](verification.md)에서 확인한다.
