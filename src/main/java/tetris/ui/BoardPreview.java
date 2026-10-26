@@ -72,7 +72,8 @@ final class BoardPreview extends JPanel {
     private static void paintGameState(Graphics2D g, BoardGeometry board, GameState state,
             ColorVisionMode mode, boolean patterns) {
         // 고정된 블록을 보드에 그린다.
-        int[][] cells = state.board().snapshot();
+        Board fixedBoard = state.board();
+        int[][] cells = fixedBoard.snapshot();
         int cellSize = board.cellSize();
 
         for (int row = 0; row < Board.ROWS; row++) {
@@ -96,6 +97,8 @@ final class BoardPreview extends JPanel {
                         x + 2,
                         y + 2,
                         cellSize - 4, mode, patterns);
+                PieceStyle.paintItem(g, fixedBoard.itemAt(row, column),
+                        x + 2, y + 2, cellSize - 4);
             }
         }
 
@@ -132,7 +135,7 @@ final class BoardPreview extends JPanel {
                 }
             }
             PieceRules.forPiece(currentPiece).lockEffect()
-                    .targetCell(state.board(), currentPiece, ghostRow, state.currentColumn())
+                    .targetCell(fixedBoard, currentPiece, ghostRow, state.currentColumn())
                     .ifPresent(target -> PieceStyle.paintEffectTarget(g,
                             board.x() + target.column() * cellSize + 2,
                             board.y() + target.row() * cellSize + 2, cellSize - 4));

@@ -51,12 +51,22 @@ public final class Tetromino {
     /** 블록이 차지하는 네 칸 중 지정한 한 칸에 아이템을 붙인 새 블록을 반환한다. */
     public Tetromino withItem(ItemType itemType, int cellIndex) {
         Objects.requireNonNull(itemType);
-        if (itemType == ItemType.NONE || itemType.isStandalone() || this.itemType.isStandalone()
+        if (itemType == ItemType.NONE || itemType.isStandalone() || itemType.marksAllCells()
+                || this.itemType.isStandalone() || this.itemType.marksAllCells()
                 || cellIndex < 0 || cellIndex >= occupiedCells.length) {
             throw new IllegalArgumentException("아이템 종류와 블록 안의 칸 번호가 필요합니다.");
         }
         int[] cell = occupiedCells[cellIndex];
         return new Tetromino(type, rotationSize, occupiedCells, itemType, cell[0], cell[1]);
+    }
+
+    /** 일반 블록의 모든 칸에 같은 아이템을 붙인다. 모양과 회전 방향은 유지한다. */
+    public Tetromino withItem(ItemType itemType) {
+        Objects.requireNonNull(itemType);
+        if (!itemType.marksAllCells() || itemType.isStandalone() || this.itemType != ItemType.NONE) {
+            throw new IllegalArgumentException("일반 블록 전체에 붙일 아이템이 필요합니다.");
+        }
+        return new Tetromino(type, rotationSize, occupiedCells, itemType, -1, -1);
     }
 
     /** 폭 4칸의 무게추. 위쪽 두 칸과 아래쪽 네 칸을 W로 표시한다. */
@@ -77,7 +87,7 @@ public final class Tetromino {
     public int itemColumn() { return itemColumn; }
 
     public boolean hasItemAt(int row, int column) {
-        if (itemType.isStandalone() && itemRow < 0) {
+        if (itemType.marksAllCells()) {
             for (int[] cell : occupiedCells) {
                 if (cell[0] == row && cell[1] == column) return true;
             }

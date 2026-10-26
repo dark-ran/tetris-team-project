@@ -4,21 +4,31 @@ package tetris.piece;
 public enum ItemType {
     NONE("", ""),
     LINE_CLEAR("L", "줄 삭제 (L)"),
-    WEIGHT("W", "무게추 (W)", true),
-    BOMB("B", "폭탄 (B)", true);
+    WEIGHT("W", "무게추 (W)", true, true),
+    BOMB("B", "폭탄 (B)", true, false),
+    GOLDEN("G", "황금 블록 (G)", false, true, 5);
 
     private final String symbol;
     private final String displayName;
     private final boolean standalone;
+    private final boolean marksAllCells;
+    private final int lineScoreMultiplier;
 
     ItemType(String symbol, String displayName) {
-        this(symbol, displayName, false);
+        this(symbol, displayName, false, false);
     }
 
-    ItemType(String symbol, String displayName, boolean standalone) {
+    ItemType(String symbol, String displayName, boolean standalone, boolean marksAllCells) {
+        this(symbol, displayName, standalone, marksAllCells, 1);
+    }
+
+    ItemType(String symbol, String displayName, boolean standalone, boolean marksAllCells,
+            int lineScoreMultiplier) {
         this.symbol = symbol;
         this.displayName = displayName;
         this.standalone = standalone;
+        this.marksAllCells = marksAllCells;
+        this.lineScoreMultiplier = lineScoreMultiplier;
     }
 
     public String symbol() {
@@ -30,4 +40,6 @@ public enum ItemType {
     }
 
     public boolean isStandalone() { return standalone; }
+    public boolean marksAllCells() { return marksAllCells; }
+    public int lineScoreMultiplier() { return lineScoreMultiplier; }
 }

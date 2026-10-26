@@ -6,6 +6,7 @@ import java.awt.Font;
 import java.awt.FontMetrics;
 import java.awt.Graphics;
 import java.awt.Graphics2D;
+import java.awt.GradientPaint;
 import java.awt.Polygon;
 import java.awt.RenderingHints;
 import java.awt.Shape;
@@ -81,6 +82,13 @@ final class PieceStyle {
         Graphics2D g = (Graphics2D) graphics.create();
         try {
             g.setRenderingHint(RenderingHints.KEY_TEXT_ANTIALIASING, RenderingHints.VALUE_TEXT_ANTIALIAS_ON);
+            if (item == ItemType.GOLDEN) {
+                g.setPaint(new GradientPaint(x, y, new Color(0xFFE08A),
+                        x, y + size, new Color(0xC99120)));
+                g.fillRect(x, y, size, size);
+                g.setColor(CELL_BORDER);
+                g.drawRect(x, y, size - 1, size - 1);
+            }
             int inset = Math.max(1, size / 8);
             g.setColor(new Color(0x181818));
             g.fillRect(x + inset, y + inset, size - inset * 2, size - inset * 2);

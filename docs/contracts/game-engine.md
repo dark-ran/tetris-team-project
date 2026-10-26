@@ -160,6 +160,7 @@ assert Arrays.deepEquals(storedCells, engine.state().board().snapshot());
 | `changed()` | 위치·모양·보드·진행 상태·생성 결과가 변경되었는지 |
 | `droppedRows()` | 이번 행동에서 현재 블록이 실제로 내려간 칸 수 |
 | `clearedRows()` | 이번 행동에서 삭제된 줄 수 |
+| `lineScoreMultiplier()` | 이번 줄 삭제 점수의 배율. 기본 1, 황금 칸을 포함한 줄 삭제는 5 |
 | `pieceLocked()` | 이번 행동에서 현재 블록이 고정되었는지 |
 | `pieceSpawned()` | 이번 행동에서 다음 블록 생성이 성공했는지 |
 | `previousPhase()` | 행동 처리 전 진행 상태 |

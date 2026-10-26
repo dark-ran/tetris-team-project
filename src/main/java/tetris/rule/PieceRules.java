@@ -12,6 +12,7 @@ public record PieceRules(PieceMovement movement, LockEffect lockEffect,
     private static final PieceRules STANDARD = new PieceRules(PieceMovement.STANDARD, LockEffect.FULL_ROWS);
     private static final Map<ItemType, PieceRules> RULES = Map.of(
             ItemType.NONE, STANDARD,
+            ItemType.GOLDEN, STANDARD,
             ItemType.LINE_CLEAR, new PieceRules(PieceMovement.STANDARD, new LineClearEffect()),
             ItemType.BOMB, new PieceRules(new BombMovement(), new BombEffect(), false, false),
             ItemType.WEIGHT, new PieceRules(new CrushingMovement(),

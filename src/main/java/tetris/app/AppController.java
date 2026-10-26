@@ -233,7 +233,8 @@ public class AppController {
 
         boolean awardsScore = before.currentPiece() != null && PieceRules.forPiece(before.currentPiece()).awardsScore();
         long gained = awardsScore ? (long) scoreSystem.onDrop(result.droppedRows(),
-                interval < SpeedSystem.INITIAL_INTERVAL_MILLIS) + scoreSystem.onLineClear(result.clearedRows()) : 0;
+                interval < SpeedSystem.INITIAL_INTERVAL_MILLIS)
+                + scoreSystem.onLineClear(result.clearedRows(), result.lineScoreMultiplier()) : 0;
         updateProgress(Math.addExact(before.score(), gained));
 
         if (result.currentPhase() == GamePhase.PAUSED && result.previousPhase() == GamePhase.RUNNING) loop.pause();

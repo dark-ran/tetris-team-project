@@ -5,6 +5,7 @@ import java.util.Objects;
 import java.util.LinkedHashSet;
 import java.util.Set;
 import tetris.piece.Tetromino;
+import tetris.piece.ItemType;
 
 /** 20행 10열의 고정된 블록을 보관하고 배치 검사, 블록 고정, 완성된 줄 삭제를 담당한다. */
 public final class Board {
@@ -17,12 +18,18 @@ public final class Board {
     public static final int COLS = COLUMNS;
 
     private final int[][] fixedCells = new int[ROWS][COLUMNS];
+    private final ItemType[][] fixedItems = new ItemType[ROWS][COLUMNS];
+
+    public Board() {
+        reset();
+    }
 
     /** 모든 칸을 비워 새 게임을 준비한다. */
     public void reset() {
         for (int[] row : fixedCells) {
             Arrays.fill(row, EMPTY_CELL);
         }
+        for (ItemType[] row : fixedItems) Arrays.fill(row, ItemType.NONE);
     }
 
     /**
@@ -67,6 +74,7 @@ public final class Board {
         for (int[] cell : cells) {
             if (fixedCells[row + cell[0]][column + cell[1]] != EMPTY_CELL) removed++;
             fixedCells[row + cell[0]][column + cell[1]] = EMPTY_CELL;
+            fixedItems[row + cell[0]][column + cell[1]] = ItemType.NONE;
         }
         return removed;
     }
@@ -85,6 +93,7 @@ public final class Board {
             for (int column = left; column <= right; column++) {
                 if (fixedCells[row][column] != EMPTY_CELL) removed++;
                 fixedCells[row][column] = EMPTY_CELL;
+                fixedItems[row][column] = ItemType.NONE;
             }
         }
         return removed;
@@ -97,7 +106,14 @@ public final class Board {
         }
         for (int[] cell : piece.cells()) {
             fixedCells[row + cell[0]][column + cell[1]] = piece.type().cellValue();
+            fixedItems[row + cell[0]][column + cell[1]] =
+                    piece.hasItemAt(cell[0], cell[1]) ? piece.itemType() : ItemType.NONE;
         }
+    }
+
+    /** 고정된 칸의 아이템. 빈 칸과 일반 칸은 NONE이며, 보드 사본에서도 유지된다. */
+    public ItemType itemAt(int row, int column) {
+        return fixedItems[Objects.checkIndex(row, ROWS)][Objects.checkIndex(column, COLUMNS)];
     }
 
     /** 완성된 줄을 모두 삭제하고 위쪽 줄을 내린 뒤, 삭제한 줄 수를 반환한다. */
@@ -131,11 +147,13 @@ public final class Board {
             }
             if (sourceRow != destinationRow) {
                 System.arraycopy(fixedCells[sourceRow], 0, fixedCells[destinationRow], 0, COLUMNS);
+                System.arraycopy(fixedItems[sourceRow], 0, fixedItems[destinationRow], 0, COLUMNS);
             }
             destinationRow--;
         }
         for (int row = destinationRow; row >= 0; row--) {
             Arrays.fill(fixedCells[row], EMPTY_CELL);
+            Arrays.fill(fixedItems[row], ItemType.NONE);
         }
         return clearedRows;
     }
@@ -154,6 +172,7 @@ public final class Board {
         Board copiedBoard = new Board();
         for (int row = 0; row < ROWS; row++) {
             System.arraycopy(fixedCells[row], 0, copiedBoard.fixedCells[row], 0, COLUMNS);
+            System.arraycopy(fixedItems[row], 0, copiedBoard.fixedItems[row], 0, COLUMNS);
         }
         return copiedBoard;
     }
