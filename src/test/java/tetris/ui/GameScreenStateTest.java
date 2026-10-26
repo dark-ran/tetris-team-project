@@ -126,6 +126,7 @@ class GameScreenStateTest {
             assertTrue(nextBounds.y + nextBounds.height / 2 <= drawnBoard.y + drawnBoard.height / 3,
                     "Preview belongs beside the upper board, where new pieces appear");
             assertTrue(new Rectangle(0, 0, screen.getWidth(), screen.getHeight()).contains(nextBounds));
+            assertTrue(new Rectangle(0, 0, screen.getWidth(), screen.getHeight()).contains(drawnBoard));
             assertTrue(drawnBoard.width >= 206, "The nearby preview must not unnecessarily shrink board cells below 20px");
             assertTrue(next.getWidth() >= 128 && next.getHeight() >= 64, "Four 32px cells must fit without clipping");
             GameMenuUiTest.tree(screen).filter(JLabel.class::isInstance).map(JLabel.class::cast)
