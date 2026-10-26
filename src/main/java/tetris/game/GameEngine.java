@@ -12,6 +12,8 @@ import tetris.piece.PieceType;
 import tetris.piece.ItemGenerator;
 import tetris.piece.Tetromino;
 import tetris.rule.PieceRules;
+import tetris.rule.LineClearBonus;
+import java.util.Set;
 
 /** 화면과 타이머에 의존하지 않고 행동과 진행 상태를 처리한다. 호출은 한 실행 흐름에서 한다. */
 public final class GameEngine {
@@ -201,15 +203,18 @@ public final class GameEngine {
 
     private GameActionResult lockAndSpawn(int droppedRows, GamePhase previousPhase) {
         if (currentRules.leavesPieceOnBoard()) board.lock(currentPiece, currentRow, currentColumn);
-        int clearedRows = board.clearRows(currentRules.lockEffect()
-                .rowsToClear(board, currentPiece, currentRow, currentColumn));
+        currentRules.lockEffect().onLock(board, currentPiece, currentRow, currentColumn);
+        Set<Integer> rows = currentRules.lockEffect().rowsToClear(board, currentPiece, currentRow, currentColumn);
+        int lineScoreMultiplier = LineClearBonus.multiplier(board, rows);
+        int clearedRows = board.clearRows(rows);
         int previousClearedRows = totalClearedRows;
         totalClearedRows += clearedRows;
         if (mode == GameMode.ITEM) {
             pendingItems += totalClearedRows / ROWS_PER_ITEM - previousClearedRows / ROWS_PER_ITEM;
         }
         boolean spawned = spawnNextPiece();
-        return result(true, droppedRows, clearedRows, true, spawned, previousPhase);
+        return new GameActionResult(true, droppedRows, clearedRows, true, spawned,
+                previousPhase, phase, lineScoreMultiplier);
     }
 
     private boolean spawnNextPiece() {

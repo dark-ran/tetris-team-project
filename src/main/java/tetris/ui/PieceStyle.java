@@ -6,6 +6,7 @@ import java.awt.Font;
 import java.awt.FontMetrics;
 import java.awt.Graphics;
 import java.awt.Graphics2D;
+import java.awt.GradientPaint;
 import java.awt.Polygon;
 import java.awt.RenderingHints;
 import java.awt.Shape;
@@ -90,6 +91,13 @@ final class PieceStyle {
         Graphics2D g = (Graphics2D) graphics.create();
         try {
             g.setRenderingHint(RenderingHints.KEY_TEXT_ANTIALIASING, RenderingHints.VALUE_TEXT_ANTIALIAS_ON);
+            if (item == ItemType.GOLDEN) {
+                g.setPaint(new GradientPaint(x, y, new Color(0xFFE08A),
+                        x, y + size, new Color(0xC99120)));
+                g.fillRect(x, y, size, size);
+                g.setColor(CELL_BORDER);
+                g.drawRect(x, y, size - 1, size - 1);
+            }
             int inset = Math.max(1, size / 8);
             g.setColor(new Color(0x181818));
             g.fillRect(x + inset, y + inset, size - inset * 2, size - inset * 2);
@@ -106,6 +114,16 @@ final class PieceStyle {
         try {
             g.setColor(new Color(0xCFD7E6));
             g.setStroke(new BasicStroke(1.2f, BasicStroke.CAP_BUTT, BasicStroke.JOIN_MITER, 10f, new float[] {3f, 3f}, 0f));
+            g.drawRect(x + 1, y + 1, size - 3, size - 3);
+        } finally { g.dispose(); }
+    }
+
+    /** 착지 시 효과가 시작되는 칸을 실선으로 표시한다. 점선인 착지 모양과 구분한다. */
+    static void paintEffectTarget(Graphics2D graphics, int x, int y, int size) {
+        Graphics2D g = (Graphics2D) graphics.create();
+        try {
+            g.setColor(AppTheme.YELLOW);
+            g.setStroke(new BasicStroke(2f));
             g.drawRect(x + 1, y + 1, size - 3, size - 3);
         } finally { g.dispose(); }
     }

@@ -62,7 +62,7 @@ class WeightItemConnectionTest {
                 private int pieces;
                 @Override public int nextInt(int bound) {
                     if (bound == 7) return pieces++ % 3 == 2 ? PieceType.O.ordinal() : PieceType.I.ordinal();
-                    if (bound == 2) return 1; // 실사용 생성기의 W 선택 경로를 검증한다.
+                    if (bound == 4) return 1; // 실사용 생성기의 W 선택 경로를 검증한다.
                     return super.nextInt(bound);
                 }
             });
