@@ -111,6 +111,36 @@ class GameOverRegistrationTest {
         });
     }
 
+    @Test void nonQualifyingResultShowsTheCurrentModeScoreboardOnTheGameOverScreen() throws Exception {
+        SwingUtilities.invokeAndWait(() -> {
+            GameOverScreen screen = new GameOverScreen(() -> {}, () -> {}, () -> {}, () -> {});
+            java.util.List<tetris.scoreboard.ScoreEntry> top = java.util.List.of(
+                    new tetris.scoreboard.ScoreEntry("first", 900, tetris.game.GameMode.ITEM, tetris.game.Difficulty.HARD),
+                    new tetris.scoreboard.ScoreEntry("second", 500, tetris.game.GameMode.ITEM, tetris.game.Difficulty.EASY));
+            screen.showScreen(10, false, tetris.game.GameMode.ITEM, top);
+            screen.setSize(GameSettings.presetDimension(GameSettings.PRESET_SMALL)); GameMenuUiTest.layout(screen);
+            javax.swing.JTable table = GameMenuUiTest.tree(screen).filter(javax.swing.JTable.class::isInstance)
+                    .map(javax.swing.JTable.class::cast).findFirst().orElseThrow();
+            assertTrue(visibleInScreen(table, screen), "등록 대상이 아니어도 스코어보드를 보여야 한다");
+            assertEquals(2, table.getRowCount());
+            assertEquals("first", table.getValueAt(0, 1));
+            assertEquals(900L, table.getValueAt(0, 2));
+            assertEquals("HARD", table.getValueAt(0, 3));
+            assertTrue(GameMenuUiTest.tree(screen).filter(JLabel.class::isInstance).map(JLabel.class::cast)
+                    .anyMatch(label -> label.getText().equals("아이템 모드 스코어보드")));
+            GameMenuUiTest.tree(screen).filter(JButton.class::isInstance).map(JButton.class::cast)
+                    .filter(button -> visibleInScreen(button, screen)).forEach(button -> {
+                        Rectangle bounds = SwingUtilities.convertRectangle(button.getParent(), button.getBounds(), screen);
+                        assertTrue(new Rectangle(screen.getSize()).contains(bounds), "작은 창에서도 버튼이 보여야 한다");
+                    });
+
+            screen.showScreen(10_000, true, tetris.game.GameMode.NORMAL, java.util.List.of());
+            GameMenuUiTest.layout(screen);
+            assertFalse(visibleInScreen(table, screen), "등록 대상이면 이름 입력을 먼저 보여 준다");
+            assertTrue(visibleInScreen(nameField(screen), screen));
+        });
+    }
+
     private static JTextField nameField(GameOverScreen screen) {
         return GameMenuUiTest.tree(screen).filter(JTextField.class::isInstance).map(JTextField.class::cast).findFirst().orElseThrow();
     }

@@ -435,10 +435,13 @@ public class AppController {
                 engine.state().score(),
                 engine.state().mode());
 
+        GameMode mode = engine.state().mode();
         activate(AppState.GAME_OVER,
                 () -> gameOverScreen.showScreen(
                         engine.state().score(),
-                        awaitingScoreName));
+                        awaitingScoreName,
+                        mode,
+                        scores.top(mode)));
     }
 
     public void registerScore(String name) {
