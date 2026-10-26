@@ -10,6 +10,7 @@ import tetris.board.Board;
 import tetris.game.GameState;
 import tetris.piece.Tetromino;
 import tetris.piece.PieceType;
+import tetris.rule.PieceRules;
 import tetris.settings.ColorVisionMode;
 
 
@@ -130,6 +131,11 @@ final class BoardPreview extends JPanel {
                     PieceStyle.paintItem(g, currentPiece.itemType(), x + 2, y + 2, cellSize - 4);
                 }
             }
+            PieceRules.forPiece(currentPiece).lockEffect()
+                    .targetCell(state.board(), currentPiece, ghostRow, state.currentColumn())
+                    .ifPresent(target -> PieceStyle.paintEffectTarget(g,
+                            board.x() + target.column() * cellSize + 2,
+                            board.y() + target.row() * cellSize + 2, cellSize - 4));
         }
     }
 

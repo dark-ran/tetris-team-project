@@ -18,7 +18,7 @@ class BombItemEngineTest {
             moveToColumn(engine, column);
             engine.apply(GameAction.HARD_DROP);
         }
-        moveToColumn(engine, 4);
+        moveToColumn(engine, 3);
         Tetromino bomb = engine.state().currentPiece();
         Tetromino preview = engine.state().upcomingPieces().getFirst();
         int[][] expected = engine.state().board().snapshot();
@@ -64,12 +64,43 @@ class BombItemEngineTest {
     }
 
     @Test void emptyBoardFloorAndBothSideWallsAreValidBlastCenters() {
-        for (int column : new int[] {0, 9}) {
+        for (int column : new int[] {0, 7}) {
             GameEngine engine = sequence(0);
             engine.newGame(GameMode.ITEM);
             moveToColumn(engine, column);
+            assertFalse(engine.apply(column == 0 ? GameAction.LEFT : GameAction.RIGHT).changed());
+            assertTrue(engine.state().board().canPlace(engine.state().currentPiece(), 19, column));
             assertEquals(19, engine.state().landingRow());
             assertTrue(engine.apply(GameAction.HARD_DROP).pieceLocked());
+            assertArrayEquals(new int[20][10], engine.state().board().snapshot());
+            assertEquals(0, engine.state().totalClearedRows());
+        }
+    }
+
+    @ParameterizedTest @EnumSource(value = GameAction.class, names = {"TICK", "DOWN", "HARD_DROP"})
+    void eitherEndStopsAboveTheStackWithoutOverlappingIt(GameAction action) {
+        for (int obstacleColumn : new int[] {2, 5}) {
+            GameEngine engine = sequence(1);
+            engine.newGame(GameMode.ITEM);
+            moveToColumn(engine, obstacleColumn);
+            engine.apply(GameAction.HARD_DROP);
+            Tetromino bomb = engine.state().currentPiece();
+            assertEquals(3, engine.state().currentColumn());
+            assertEquals(17, engine.state().landingRow());
+            int[][] before = engine.state().board().snapshot();
+            assertFalse(engine.apply(GameAction.ROTATE_CLOCKWISE).changed());
+            assertSame(bomb, engine.state().currentPiece());
+            int steps = 0;
+            while (engine.state().currentPiece() == bomb) {
+                GameActionResult result = engine.apply(action);
+                assertTrue(++steps <= 20);
+                if (!result.pieceLocked()) {
+                    assertTrue(engine.state().currentRow() <= 17);
+                    assertTrue(engine.state().board().canPlace(bomb,
+                            engine.state().currentRow(), engine.state().currentColumn()));
+                    assertArrayEquals(before, engine.state().board().snapshot());
+                }
+            }
             assertArrayEquals(new int[20][10], engine.state().board().snapshot());
             assertEquals(0, engine.state().totalClearedRows());
         }

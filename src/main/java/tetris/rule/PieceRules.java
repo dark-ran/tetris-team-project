@@ -13,7 +13,7 @@ public record PieceRules(PieceMovement movement, LockEffect lockEffect,
     private static final Map<ItemType, PieceRules> RULES = Map.of(
             ItemType.NONE, STANDARD,
             ItemType.LINE_CLEAR, new PieceRules(PieceMovement.STANDARD, new LineClearEffect()),
-            ItemType.BOMB, new PieceRules(PieceMovement.STANDARD, new BombEffect(), false, false),
+            ItemType.BOMB, new PieceRules(new BombMovement(), new BombEffect(), false, false),
             ItemType.WEIGHT, new PieceRules(new CrushingMovement(),
                     (board, piece, row, column) -> Set.of(), false, false));
 

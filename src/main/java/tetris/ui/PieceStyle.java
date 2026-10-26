@@ -101,6 +101,16 @@ final class PieceStyle {
         } finally { g.dispose(); }
     }
 
+    /** 착지 시 효과가 시작되는 칸을 실선으로 표시한다. 점선인 착지 모양과 구분한다. */
+    static void paintEffectTarget(Graphics2D graphics, int x, int y, int size) {
+        Graphics2D g = (Graphics2D) graphics.create();
+        try {
+            g.setColor(AppTheme.YELLOW);
+            g.setStroke(new BasicStroke(2f));
+            g.drawRect(x + 1, y + 1, size - 3, size - 3);
+        } finally { g.dispose(); }
+    }
+
     static Color patternColor(Color fill) {
         double luminance = 0.2126 * linear(fill.getRed()) + 0.7152 * linear(fill.getGreen()) + 0.0722 * linear(fill.getBlue());
         return luminance > 0.179 ? Color.BLACK : Color.WHITE;

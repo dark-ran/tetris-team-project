@@ -84,7 +84,7 @@ class BombItemConnectionTest {
             assertSame(preview, engine.state().currentPiece());
             assertEquals(10, engine.state().totalClearedRows());
             if (mode == GameMode.ITEM) {
-                moveToColumn(app, engine, 8);
+                moveToColumn(app, engine, 7);
                 long score = engine.state().score();
                 int[][] expected = engine.state().board().snapshot();
                 int centerRow = engine.state().landingRow();

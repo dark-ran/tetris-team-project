@@ -66,9 +66,10 @@ public final class Tetromino {
                 ItemType.WEIGHT, -1, -1);
     }
 
-    /** B로 표시하는 한 칸 폭탄. Z의 색상을 사용하며 일반 블록 종류에는 추가하지 않는다. */
+    /** 가로 세 칸의 다이너마이트. 가운데 칸에 B를 표시하며 Z의 색상을 사용한다. */
     public static Tetromino bomb() {
-        return new Tetromino(PieceType.Z, 1, new int[][] {{0, 0}}, ItemType.BOMB, -1, -1);
+        return new Tetromino(PieceType.Z, 3, new int[][] {{0, 0}, {0, 1}, {0, 2}},
+                ItemType.BOMB, 0, 1);
     }
 
     public ItemType itemType() { return itemType; }
@@ -76,7 +77,7 @@ public final class Tetromino {
     public int itemColumn() { return itemColumn; }
 
     public boolean hasItemAt(int row, int column) {
-        if (itemType.isStandalone()) {
+        if (itemType.isStandalone() && itemRow < 0) {
             for (int[] cell : occupiedCells) {
                 if (cell[0] == row && cell[1] == column) return true;
             }
@@ -119,8 +120,8 @@ public final class Tetromino {
         }
         Arrays.sort(rotatedCells, Comparator.comparingInt((int[] cell) -> cell[0])
                 .thenComparingInt(cell -> cell[1]));
-        boolean attached = itemType != ItemType.NONE && !itemType.isStandalone();
+        boolean marked = itemRow >= 0;
         return new Tetromino(type, rotationSize, rotatedCells, itemType,
-                attached ? itemColumn : -1, attached ? rotationSize - 1 - itemRow : -1);
+                marked ? itemColumn : -1, marked ? rotationSize - 1 - itemRow : -1);
     }
 }
