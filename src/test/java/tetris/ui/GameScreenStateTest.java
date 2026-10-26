@@ -1,3 +1,4 @@
+
 package tetris.ui;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -20,7 +21,14 @@ class GameScreenStateTest {
         SwingUtilities.invokeAndWait(() -> {
             GameScreen screen = new GameScreen(() -> {}, () -> {}, () -> {});
             Tetromino item = new Tetromino(PieceType.I).withItem(ItemType.LINE_CLEAR, 0);
-            GameEngine engine = new GameEngine(() -> PieceQueue.generatedBy(() -> item, 1), new CenteredPieceSpawnPolicy());
+
+            // 이 테스트는 이미 L 아이템이 붙은 블록을 사용한다.
+            // 추가 아이템 생성은 하지 않아 무작위 중복 부착을 방지한다.
+            GameEngine engine = new GameEngine(
+                    () -> PieceQueue.generatedBy(() -> item, 1),
+                    new CenteredPieceSpawnPolicy(),
+                    piece -> piece);
+
             engine.newGame(GameMode.ITEM);
             screen.render(engine.state());
             JLabel progress = GameMenuUiTest.tree(screen).filter(JLabel.class::isInstance).map(JLabel.class::cast)
@@ -138,6 +146,7 @@ class GameScreenStateTest {
         return GameMenuUiTest.tree(screen).filter(NextPiecePreview.class::isInstance)
                 .map(NextPiecePreview.class::cast).findFirst().orElseThrow();
     }
+
     private static void assertPreview(NextPiecePreview preview, PieceType type) {
         if (preview.getWidth() == 0) preview.setSize(preview.getPreferredSize());
         assertEquals("다음 블록: " + type.name(), preview.getAccessibleContext().getAccessibleName());
