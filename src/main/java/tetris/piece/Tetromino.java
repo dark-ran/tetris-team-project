@@ -66,6 +66,11 @@ public final class Tetromino {
                 ItemType.WEIGHT, -1, -1);
     }
 
+    /** B로 표시하는 한 칸 폭탄. Z의 색상을 사용하며 일반 블록 종류에는 추가하지 않는다. */
+    public static Tetromino bomb() {
+        return new Tetromino(PieceType.Z, 1, new int[][] {{0, 0}}, ItemType.BOMB, -1, -1);
+    }
+
     public ItemType itemType() { return itemType; }
     public int itemRow() { return itemRow; }
     public int itemColumn() { return itemColumn; }

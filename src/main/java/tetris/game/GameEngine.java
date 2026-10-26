@@ -169,6 +169,7 @@ public final class GameEngine {
 
     private GameActionResult lockAndSpawn(int droppedRows, GamePhase previousPhase) {
         if (currentRules.leavesPieceOnBoard()) board.lock(currentPiece, currentRow, currentColumn);
+        currentRules.lockEffect().onLock(board, currentPiece, currentRow, currentColumn);
         int clearedRows = board.clearRows(currentRules.lockEffect()
                 .rowsToClear(board, currentPiece, currentRow, currentColumn));
         int previousClearedRows = totalClearedRows;

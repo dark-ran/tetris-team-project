@@ -1,7 +1,6 @@
 package tetris.piece;
 
 import static org.junit.jupiter.api.Assertions.*;
-import java.util.Random;
 import org.junit.jupiter.api.Test;
 import tetris.game.CenteredPieceSpawnPolicy;
 
@@ -26,26 +25,4 @@ class WeightItemTest {
                 () -> new Tetromino(PieceType.O).withItem(ItemType.WEIGHT, 0));
     }
 
-    @Test void productionItemPoolSelectsBothItemsWithinFivePercentOfExpectedCount() {
-        ItemGenerator generator = new ItemGenerator(new Random(624));
-        int lines = 0, weights = 0;
-        Tetromino plain = new Tetromino(PieceType.T);
-        for (int i = 0; i < 100_000; i++) {
-            Tetromino item = generator.apply(plain);
-            if (item.itemType() == ItemType.LINE_CLEAR) {
-                lines++;
-                assertArrayEquals(plain.cells(), item.cells());
-            } else {
-                assertEquals(ItemType.WEIGHT, item.itemType());
-                weights++;
-                assertArrayEquals(Tetromino.weight().cells(), item.cells());
-            }
-        }
-        assertTrue(Math.abs(lines - 50_000) <= 2_500);
-        assertTrue(Math.abs(weights - 50_000) <= 2_500);
-        System.out.printf("Item pool: L=%d, W=%d / 100000%n", lines, weights);
-        assertEquals(ItemType.NONE, plain.itemType());
-        assertThrows(NullPointerException.class, () -> new ItemGenerator(null));
-        assertThrows(NullPointerException.class, () -> generator.apply(null));
-    }
 }

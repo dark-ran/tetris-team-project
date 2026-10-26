@@ -71,6 +71,25 @@ public final class Board {
         return removed;
     }
 
+    /** 중심에서 지정한 거리 안의 사각 영역을 비운다. 보드 밖은 제외하고 나머지 칸은 내리지 않는다. */
+    public int removeArea(int centerRow, int centerColumn, int radius) {
+        if (centerRow < 0 || centerRow >= ROWS || centerColumn < 0 || centerColumn >= COLUMNS || radius < 0) {
+            throw new IllegalArgumentException("보드 안의 중심과 0 이상의 범위가 필요합니다.");
+        }
+        int top = (int) Math.max(0L, (long) centerRow - radius);
+        int bottom = (int) Math.min(ROWS - 1L, (long) centerRow + radius);
+        int left = (int) Math.max(0L, (long) centerColumn - radius);
+        int right = (int) Math.min(COLUMNS - 1L, (long) centerColumn + radius);
+        int removed = 0;
+        for (int row = top; row <= bottom; row++) {
+            for (int column = left; column <= right; column++) {
+                if (fixedCells[row][column] != EMPTY_CELL) removed++;
+                fixedCells[row][column] = EMPTY_CELL;
+            }
+        }
+        return removed;
+    }
+
     /** 배치 가능한 블록의 칸 저장값을 기록한다. 잘못된 위치이면 보드를 변경하지 않고 예외를 발생시킨다. */
     public void lock(Tetromino piece, int row, int column) {
         if (!canPlace(piece, row, column)) {

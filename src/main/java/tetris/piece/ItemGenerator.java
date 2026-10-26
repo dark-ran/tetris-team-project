@@ -12,7 +12,8 @@ public final class ItemGenerator implements UnaryOperator<Tetromino> {
 
     public ItemGenerator(RandomGenerator random) {
         this.random = Objects.requireNonNull(random);
-        generators = List.of(new LineClearItemGenerator(random), ignored -> Tetromino.weight());
+        generators = List.of(new LineClearItemGenerator(random), ignored -> Tetromino.weight(),
+                ignored -> Tetromino.bomb());
     }
 
     @Override public Tetromino apply(Tetromino piece) {

@@ -4,7 +4,8 @@ package tetris.piece;
 public enum ItemType {
     NONE("", ""),
     LINE_CLEAR("L", "줄 삭제 (L)"),
-    WEIGHT("W", "무게추 (W)", true);
+    WEIGHT("W", "무게추 (W)", true),
+    BOMB("B", "폭탄 (B)", true);
 
     private final String symbol;
     private final String displayName;
