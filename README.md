@@ -6,12 +6,12 @@ Java 21과 Swing으로 만든 테트리스다. 일반 모드와 아이템 모드
 
 ## 다운로드와 실행
 
-중간평가 기능 기준은 main `3ccf291`이다. Java 실행 환경과 아이콘이 포함되어 별도 명령 입력 없이 실행할 수 있다.
+중간평가 기능 기준은 main `72207af`이며, PR #31의 게임 종료 시 스코어보드 표시 수정을 포함한다. Java 실행 환경과 아이콘이 포함되어 별도 명령 입력 없이 실행할 수 있다.
 
 | 환경 | 다운로드 | 실행 |
 |---|---|---|
-| Windows x64 | [Windows 실행 패키지](https://github.com/dark-ran/tetris-team-project/actions/runs/40358235959/artifacts/12666981899) | 압축 해제 후 `Tetris/Tetris.exe` |
-| macOS Apple Silicon | [macOS arm64 실행 패키지](https://github.com/dark-ran/tetris-team-project/actions/runs/40358236283/artifacts/12667121964) | 압축 해제 후 `Tetris.app` |
+| Windows x64 | [Windows 실행 패키지](https://github.com/dark-ran/tetris-team-project/actions/runs/40417106166/artifacts/12695887927) | 압축 해제 후 `Tetris/Tetris.exe` |
+| macOS Apple Silicon | [macOS arm64 실행 패키지](https://github.com/dark-ran/tetris-team-project/actions/runs/40417106164/artifacts/12694424200) | 압축 해제 후 `Tetris.app` |
 
 GitHub 로그인 후 Artifact를 받는다. 바깥 ZIP 안의 게임 ZIP도 해제하고 실행파일을 더블클릭한다. Windows는 Tetris 폴더 전체를 유지한다. 패키지 선택·다시 만들기·macOS 첫 실행 안내는 [배포 문서](docs/distribution.md)에 정리한다.
 

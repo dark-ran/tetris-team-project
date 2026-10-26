@@ -4,12 +4,12 @@
 
 ## 중간평가용 패키지
 
-기능 기준: main `3ccf291` (2026-10-27). 이후 문서만 바뀐 경우 아래 패키지의 게임 기능은 같다.
+기능 기준: main `72207af` (2026-10-27, PR #31의 게임 종료 시 스코어보드 표시 수정 포함). 이후 문서만 바뀐 경우 아래 패키지의 게임 기능은 같다.
 
 | 운영체제·CPU | 다운로드 | 실행 위치 |
 |---|---|---|
-| Windows x64 | [Tetris-windows-x64](https://github.com/dark-ran/tetris-team-project/actions/runs/40358235959/artifacts/12666981899) | 내부 ZIP 해제 후 `Tetris/Tetris.exe` |
-| macOS Apple Silicon arm64 | [Tetris-macos-ARM64](https://github.com/dark-ran/tetris-team-project/actions/runs/40358236283/artifacts/12667121964) | 내부 ZIP 해제 후 `Tetris.app` |
+| Windows x64 | [Tetris-windows-x64](https://github.com/dark-ran/tetris-team-project/actions/runs/40417106166/artifacts/12695887927) | 내부 ZIP 해제 후 `Tetris/Tetris.exe` |
+| macOS Apple Silicon arm64 | [Tetris-macos-ARM64](https://github.com/dark-ran/tetris-team-project/actions/runs/40417106164/artifacts/12694424200) | 내부 ZIP 해제 후 `Tetris.app` |
 
 GitHub에 로그인하여 Actions Artifact를 받는다. 바깥 Artifact ZIP 안에는 게임 ZIP과 SHA-256 확인값 파일이 있다. 내부 게임 ZIP도 해제한 뒤 실행한다. Windows에서는 exe만 따로 옮기지 말고 Tetris 폴더 전체를 유지한다.
 
