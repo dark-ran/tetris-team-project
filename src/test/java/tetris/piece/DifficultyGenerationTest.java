@@ -33,6 +33,84 @@ class DifficultyGenerationTest {
         assertFalse(counts.containsKey(PieceType.SINGLE));
     }
 
+    // 1,000회는 확률 차이 5%p를 확인하는 보조 검사이다.
+    // 기대 횟수 대비 상대오차 5%는 아래 100,000회 검사에서 판정한다.
+    @ParameterizedTest @EnumSource(Difficulty.class)
+    void pieceDistributionAtOneThousandExecutionsUsesFivePercentagePointTolerance(Difficulty difficulty) {
+        int samples = 1_000;
+        PieceQueue queue = new PieceQueue(new Random(20261026 + difficulty.ordinal()), difficulty);
+        EnumMap<PieceType, Integer> counts = new EnumMap<>(PieceType.class);
+        for (int i = 0; i < samples; i++) {
+            counts.merge(queue.next(), 1, Integer::sum);
+        }
+
+        int totalWeight = difficulty == Difficulty.NORMAL ? 70 : difficulty.iWeight() + 60;
+        System.out.printf("=== [1,000 Runs] Difficulty: %s (Total Weight: %d) ===%n", difficulty, totalWeight);
+        System.out.printf("%-6s | %-6s | %-8s | %-12s | %-12s | %-14s | %-14s%n",
+                "Piece", "Weight", "Count", "Actual Rate", "Expect Rate", "Abs Error (%p)", "Rel Error (%)");
+        System.out.println("-----------------------------------------------------------------------------------------");
+
+        for (PieceType type : PieceType.standardTypes()) {
+            int weight = (difficulty == Difficulty.NORMAL) ? 10 : (type == PieceType.I ? difficulty.iWeight() : 10);
+            double expectedCount = (double) samples * weight / totalWeight;
+            int actualCount = counts.getOrDefault(type, 0);
+
+            double actualRate = (double) actualCount / samples;
+            double expectedRate = (double) weight / totalWeight;
+            double absError = Math.abs(actualRate - expectedRate);
+            double relError = Math.abs(actualCount - expectedCount) / expectedCount;
+
+            System.out.printf("%-6s | %-6d | %-8d | %11.4f%% | %11.4f%% | %13.4f%%p | %13.4f%%%n",
+                    type, weight, actualCount, actualRate * 100, expectedRate * 100, absError * 100, relError * 100);
+
+            // Absolute error <= 5%p
+            assertTrue(absError <= 0.05,
+                    () -> String.format("1,000 runs %s %s absolute error %.4f > 0.05", difficulty, type, absError));
+        }
+        System.out.println();
+    }
+
+    // Req2의 최소 1,000회 조건을 충족하도록 표본을 늘려 상대오차를 확인한다.
+    @ParameterizedTest @EnumSource(Difficulty.class)
+    void pieceDistributionAtOneHundredThousandExecutionsUsesFivePercentRelativeTolerance(Difficulty difficulty) {
+        int samples = 100_000;
+        PieceQueue queue = new PieceQueue(new Random(20261026 + difficulty.ordinal()), difficulty);
+        EnumMap<PieceType, Integer> counts = new EnumMap<>(PieceType.class);
+        for (int i = 0; i < samples; i++) {
+            counts.merge(queue.next(), 1, Integer::sum);
+        }
+
+        int totalWeight = difficulty == Difficulty.NORMAL ? 70 : difficulty.iWeight() + 60;
+        System.out.printf("=== [100,000 Runs] Difficulty: %s (Total Weight: %d) ===%n", difficulty, totalWeight);
+        System.out.printf("%-6s | %-6s | %-8s | %-12s | %-12s | %-14s | %-14s%n",
+                "Piece", "Weight", "Count", "Actual Rate", "Expect Rate", "Abs Error (%p)", "Rel Error (%)");
+        System.out.println("-----------------------------------------------------------------------------------------");
+
+        for (PieceType type : PieceType.standardTypes()) {
+            int weight = (difficulty == Difficulty.NORMAL) ? 10 : (type == PieceType.I ? difficulty.iWeight() : 10);
+            double expectedCount = (double) samples * weight / totalWeight;
+            int actualCount = counts.getOrDefault(type, 0);
+
+            double actualRate = (double) actualCount / samples;
+            double expectedRate = (double) weight / totalWeight;
+            double absError = Math.abs(actualRate - expectedRate);
+            double relError = Math.abs(actualCount - expectedCount) / expectedCount;
+
+            System.out.printf("%-6s | %-6d | %-8d | %11.4f%% | %11.4f%% | %13.4f%%p | %13.4f%%%n",
+                    type, weight, actualCount, actualRate * 100, expectedRate * 100, absError * 100, relError * 100);
+
+            // Relative error <= 5%
+            assertTrue(relError <= 0.05,
+                    () -> String.format("%s %s count: %d, expected: %.2f, relative error: %.4f (limit: 0.05)",
+                            difficulty, type, actualCount, expectedCount, relError));
+            // Absolute error <= 5%p
+            assertTrue(absError <= 0.05,
+                    () -> String.format("%s %s rate: %.4f, expected: %.4f, absolute error: %.4f (limit: 0.05)",
+                            difficulty, type, actualRate, expectedRate, absError));
+        }
+        System.out.println();
+    }
+
     @Test void itemReplacementPreservesEarlierPreviewsAndReturnsToStandardGeneration() {
         PieceQueue queue = new PieceQueue(new Random(42), 3, Difficulty.EASY);
         List<PieceType> old = queue.preview();
