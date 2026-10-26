@@ -13,13 +13,15 @@ import java.nio.file.StandardOpenOption;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
+import tetris.game.Difficulty;
 import tetris.game.GameMode;
 
 /** 사용자 홈의 버전 있는 UTF-8 파일. 저장 실패는 호출자에게 전달한다. */
 public class ScoreRepository {
     // 랭킹 파일인지 확인하기 위한 첫 줄의 표식이다.
     private static final String LEGACY_HEADER = "TETRIS-SCORES-1";
-    private static final String HEADER = "TETRIS-SCORES-2";
+    private static final String MODE_HEADER = "TETRIS-SCORES-2";
+    private static final String HEADER = "TETRIS-SCORES-3";
     private static final int MAX_ATTEMPTS = 3;
     private final Path path;
     private String loadWarning;
@@ -38,16 +40,20 @@ public class ScoreRepository {
         if (Files.notExists(path)) return List.of();
         try {
             List<String> lines = Files.readAllLines(path, StandardCharsets.UTF_8);
-            if (lines.isEmpty() || !(HEADER.equals(lines.getFirst()) || LEGACY_HEADER.equals(lines.getFirst())))
+            if (lines.isEmpty() || !(HEADER.equals(lines.getFirst()) || MODE_HEADER.equals(lines.getFirst())
+                    || LEGACY_HEADER.equals(lines.getFirst())))
                 throw new IllegalArgumentException("unsupported score file header");
             boolean legacy = LEGACY_HEADER.equals(lines.getFirst());
+            boolean hasDifficulty = HEADER.equals(lines.getFirst());
             List<ScoreEntry> entries = new ArrayList<>();
             for (String line : lines.subList(1, lines.size())) {
                 try {
                     String[] fields = line.split("\t", -1);
-                    if (fields.length != (legacy ? 2 : 3)) throw new IllegalArgumentException("invalid row");
+                    if (fields.length != (legacy ? 2 : hasDifficulty ? 4 : 3))
+                        throw new IllegalArgumentException("invalid row");
                     entries.add(new ScoreEntry(fields[0], Long.parseLong(fields[1]),
-                            legacy ? GameMode.NORMAL : GameMode.valueOf(fields[2])));
+                            legacy ? GameMode.NORMAL : GameMode.valueOf(fields[2]),
+                            hasDifficulty ? Difficulty.valueOf(fields[3]) : Difficulty.NORMAL));
                 } catch (IllegalArgumentException ex) {
                     loadWarning = "Some score rows were damaged and skipped";
                 }
@@ -65,7 +71,8 @@ public class ScoreRepository {
         // 이름에 탭·줄바꿈을 허용하지 않으므로 이름과 점수를 탭으로 직접 구분할 수 있다.
         for (ScoreEntry entry : copy) {
             data.append(entry.name()).append('\t').append(entry.score())
-                    .append('\t').append(entry.mode().name()).append('\n');
+                    .append('\t').append(entry.mode().name())
+                    .append('\t').append(entry.difficulty().name()).append('\n');
         }
         byte[] bytes = data.toString().getBytes(StandardCharsets.UTF_8);
         for (int attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {

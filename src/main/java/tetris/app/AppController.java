@@ -448,7 +448,7 @@ public class AppController {
 
         if (pendingScore == null) {
             pendingScore = new ScoreEntry(
-                    name, engine.state().score(), engine.state().mode());
+                    name, engine.state().score(), engine.state().mode(), engine.difficulty());
         }
 
         retryScoreSave();
@@ -461,7 +461,7 @@ public class AppController {
 
         try {
             ScoreEntry entry = pendingScore;
-            scores.register(entry.name(), entry.score(), entry.mode());
+            scores.register(entry.name(), entry.score(), entry.mode(), entry.difficulty());
 
             persistenceError = null;
             lastRegisteredScore = entry;

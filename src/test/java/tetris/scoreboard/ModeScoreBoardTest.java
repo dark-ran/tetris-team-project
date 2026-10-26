@@ -39,6 +39,6 @@ class ModeScoreBoardTest {
         scores.register("아이템 사용자", 9, GameMode.ITEM);
         assertEquals("기존 사용자", new ScoreBoardService(repository).top().getFirst().name());
         assertEquals(GameMode.ITEM, repository.load().getLast().mode());
-        assertTrue(Files.readString(file).startsWith("TETRIS-SCORES-2\n"));
+        assertTrue(Files.readString(file).startsWith("TETRIS-SCORES-3\n"));
     }
 }
