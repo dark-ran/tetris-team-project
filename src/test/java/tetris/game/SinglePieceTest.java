@@ -54,6 +54,6 @@ class SinglePieceTest {
         engine.newGame(Difficulty.HARD);
         assertEquals(Difficulty.EASY, old.difficulty());
         assertEquals(Difficulty.HARD, engine.state().difficulty());
-        assertThrows(NullPointerException.class, () -> engine.newGame(null));
+        assertThrows(NullPointerException.class, () -> engine.newGame((Difficulty) null));
     }
 }

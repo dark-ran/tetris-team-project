@@ -17,6 +17,8 @@ import javax.swing.JPanel;
 import javax.swing.KeyStroke;
 import tetris.game.GameState;
 import tetris.game.GameAction;
+import tetris.game.GameEngine;
+import tetris.game.GameMode;
 import tetris.input.InputHandler;
 import tetris.settings.GameSettings;
 
@@ -26,6 +28,9 @@ public class GameScreen extends JPanel {
     private final BoardPreview boardPreview = new BoardPreview();
     private final JLabel scoreLabel = new JLabel("0");
     private final JLabel levelLabel = new JLabel("1");
+    private final JLabel modeLabel = new JLabel("일반 모드");
+    private final JLabel clearedRowsLabel = new JLabel("삭제한 줄: 0줄");
+    private final JLabel itemProgressLabel = ScreenSupport.mutedLabel("");
     private final NextPiecePreview nextPiecePreview = new NextPiecePreview();
     private final JPanel controls = ScreenSupport.verticalPanel();
     private final JPanel content = ScreenSupport.transparentPanel(new GridBagLayout());
@@ -98,10 +103,9 @@ public class GameScreen extends JPanel {
                 case ROTATE_CLOCKWISE -> "시계방향 회전"; case HARD_DROP -> "즉시 낙하";
                 case QUIT -> "프로그램 종료"; default -> "";
             };
-            controls.add(Box.createVerticalStrut(4));
+            controls.add(Box.createVerticalStrut(1));
             controls.add(new JLabel("[" + SwingKeyBindings.keyText(code) + "]  " + label));
         });
-        controls.add(Box.createVerticalStrut(8));
         controls.add(ScreenSupport.mutedLabel("[Esc]  게임 메뉴"));
         controls.revalidate(); controls.repaint();
     }
@@ -139,6 +143,15 @@ public class GameScreen extends JPanel {
         panel.setPreferredSize(new Dimension(240, 0));
         panel.add(nextPieceCard(), BorderLayout.NORTH);
         JPanel details = ScreenSupport.framedPanel(new BorderLayout());
+        JPanel modeDetails = ScreenSupport.transparentPanel(new BorderLayout());
+        JPanel modeHeading = ScreenSupport.transparentPanel(new BorderLayout(8, 0));
+        modeHeading.add(modeLabel, BorderLayout.WEST);
+        modeHeading.add(clearedRowsLabel, BorderLayout.EAST);
+        modeDetails.add(modeHeading, BorderLayout.NORTH);
+        modeDetails.add(itemProgressLabel, BorderLayout.CENTER);
+        clearedRowsLabel.setVisible(false);
+        itemProgressLabel.setVisible(false);
+        details.add(modeDetails, BorderLayout.NORTH);
         JPanel sections = ScreenSupport.verticalPanel();
         sections.add(informationSection("점수", scoreLabel));
         sections.add(Box.createVerticalStrut(8));
@@ -161,7 +174,13 @@ public class GameScreen extends JPanel {
     public void render(GameState state) {
         if (state == null) return;
         boardPreview.render(state);
+        modeLabel.setText(state.mode().toString());
+        clearedRowsLabel.setVisible(state.mode() == GameMode.ITEM);
+        clearedRowsLabel.setText("삭제한 줄: " + state.totalClearedRows() + "줄");
+        itemProgressLabel.setVisible(state.mode() == GameMode.ITEM);
+        itemProgressLabel.setText("다음 아이템까지 "
+                + (GameEngine.ROWS_PER_ITEM - state.totalClearedRows() % GameEngine.ROWS_PER_ITEM) + "줄");
         scoreLabel.setText(Long.toString(state.score())); levelLabel.setText(Integer.toString(state.level()));
-        nextPiecePreview.setPiece(state.nextPieces().isEmpty() ? null : state.nextPieces().getFirst());
+        nextPiecePreview.setBlock(state.upcomingPieces().isEmpty() ? null : state.upcomingPieces().getFirst());
     }
 }

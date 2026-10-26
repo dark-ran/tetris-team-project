@@ -7,6 +7,7 @@ import java.awt.Font;
 import java.awt.GridBagLayout;
 import java.awt.GridLayout;
 import java.util.List;
+import java.util.ArrayList;
 import javax.swing.BorderFactory;
 import javax.swing.Box;
 import javax.swing.JButton;
@@ -23,6 +24,11 @@ public class StartMenu extends JPanel {
     private final JButton startButton;
 
     public StartMenu(Runnable onStart, Runnable onSettings, Runnable onScoreboard, Runnable onExit) {
+        this(onStart, null, onSettings, onScoreboard, onExit);
+    }
+
+    public StartMenu(Runnable onStart, Runnable onItemStart, Runnable onSettings,
+            Runnable onScoreboard, Runnable onExit) {
         setLayout(new BorderLayout(0, 20));
         setBackground(AppTheme.BACKGROUND);
         setBorder(BorderFactory.createEmptyBorder(26, 34, 24, 34));
@@ -31,17 +37,20 @@ public class StartMenu extends JPanel {
         JButton settingsButton = ScreenSupport.button("설정", onSettings);
         JButton scoreboardButton = ScreenSupport.button("스코어보드", onScoreboard);
         JButton exitButton = ScreenSupport.dangerButton("프로그램 종료", onExit);
-        List<JButton> buttons = List.of(startButton, settingsButton, scoreboardButton, exitButton);
+        List<JButton> buttons = new ArrayList<>();
+        buttons.add(startButton);
+        if (onItemStart != null) buttons.add(ScreenSupport.button("아이템 모드 시작", onItemStart));
+        buttons.addAll(List.of(settingsButton, scoreboardButton, exitButton));
 
         JPanel title = ScreenSupport.transparentPanel(new BorderLayout(0, 8));
         title.add(new TetrisWordmark(), BorderLayout.CENTER);
 
-        JPanel buttonList = ScreenSupport.transparentPanel(new GridLayout(4, 1, 0, 8));
+        JPanel buttonList = ScreenSupport.transparentPanel(new GridLayout(buttons.size(), 1, 0, 8));
         buttons.forEach(buttonList::add);
         JPanel menu = new JPanel(new BorderLayout(0, 12));
         menu.setBackground(AppTheme.SURFACE);
         menu.setBorder(AppTheme.frameBorder(16, 18));
-        menu.setPreferredSize(new Dimension(360, 244));
+        menu.setPreferredSize(new Dimension(360, 244 + (buttons.size() - 4) * 44));
         JLabel menuLabel = new JLabel("[ 메뉴 ]");
         menuLabel.setFont(AppTheme.font(Font.BOLD, 13f));
         menuLabel.setForeground(AppTheme.YELLOW);

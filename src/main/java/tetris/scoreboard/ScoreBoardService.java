@@ -4,6 +4,8 @@ import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Objects;
+import java.util.Arrays;
+import tetris.game.GameMode;
 
 /** 상위 10개 유지. 동점은 먼저 등록된 기록을 우선한다. */
 public class ScoreBoardService {
@@ -17,12 +19,19 @@ public class ScoreBoardService {
     }
     // 정원이 차면 마지막 기록보다 높은 점수만 등록한다.
     public boolean qualifies(long score) {
+        return qualifies(score, GameMode.NORMAL);
+    }
+    public boolean qualifies(long score, GameMode mode) {
         if (score < 0) throw new IllegalArgumentException("score must be nonnegative");
-        return entries.size() < CAPACITY || score > entries.getLast().score();
+        List<ScoreEntry> ranking = top(mode);
+        return ranking.size() < CAPACITY || score > ranking.getLast().score();
     }
     public void register(String name, long score) {
-        ScoreEntry entry = new ScoreEntry(name, score);
-        if (!qualifies(score)) return;
+        register(name, score, GameMode.NORMAL);
+    }
+    public void register(String name, long score, GameMode mode) {
+        ScoreEntry entry = new ScoreEntry(name, score, mode);
+        if (!qualifies(score, mode)) return;
         List<ScoreEntry> next = new ArrayList<>(entries);
         next.add(entry);
         next = ranked(next);
@@ -31,8 +40,17 @@ public class ScoreBoardService {
         entries = next;
     }
 
-    public List<ScoreEntry> top() { return entries; }
-    public long highScore() { return entries.isEmpty() ? 0 : entries.getFirst().score(); }
+    public List<ScoreEntry> top() { return top(GameMode.NORMAL); }
+    public List<ScoreEntry> top(GameMode mode) {
+        Objects.requireNonNull(mode);
+        return entries.stream().filter(entry -> entry.mode() == mode).toList();
+    }
+    public List<ScoreEntry> allModes() { return entries; }
+    public long highScore() { return highScore(GameMode.NORMAL); }
+    public long highScore(GameMode mode) {
+        List<ScoreEntry> ranking = top(mode);
+        return ranking.isEmpty() ? 0 : ranking.getFirst().score();
+    }
     public String loadWarning() { return repository.loadWarning(); }
     public void reset() {
         // 파일 삭제 실패 시 메모리에 남아 있는 기록도 유지한다.
@@ -41,7 +59,8 @@ public class ScoreBoardService {
     }
     /** 순서 있는 스트림의 안정 정렬로 동점 기록의 기존 등록 순서를 보존한다. */
     private static List<ScoreEntry> ranked(List<ScoreEntry> records) {
-        return records.stream().sorted(Comparator.comparingLong(ScoreEntry::score).reversed())
-                .limit(CAPACITY).toList();
+        return Arrays.stream(GameMode.values()).flatMap(mode -> records.stream()
+                .filter(entry -> entry.mode() == mode)
+                .sorted(Comparator.comparingLong(ScoreEntry::score).reversed()).limit(CAPACITY)).toList();
     }
 }

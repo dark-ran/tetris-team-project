@@ -16,10 +16,12 @@ import tetris.game.GameActionResult;
 import tetris.game.GameEngine;
 import tetris.game.GamePhase;
 import tetris.game.GameState;
+import tetris.game.GameMode;
 import tetris.loop.GameLoop;
 import tetris.input.InputHandler;
 import tetris.input.KeyMapper;
 import tetris.rule.ScoreSystem;
+import tetris.rule.PieceRules;
 import tetris.rule.SpeedSystem;
 import tetris.scoreboard.ScoreBoardService;
 import tetris.scoreboard.ScoreEntry;
@@ -102,7 +104,8 @@ public class AppController {
         this.intervalUpdater = intervalUpdater != null ? intervalUpdater : this.loop::setIntervalMillis;
 
         startMenu = register(AppState.START_MENU,
-                new StartMenu(this::startGame, this::showSettings, this::showScoreboard, this::exit));
+                new StartMenu(this::startGame, () -> startGame(GameMode.ITEM),
+                        this::showSettings, this::showScoreboard, this::exit));
         gameScreen = register(AppState.GAME,
                 new GameScreen(this::showGameMenu, this::showStartMenu, this::exit));
 
@@ -110,7 +113,7 @@ public class AppController {
         scoreboardScreen = register(AppState.SCOREBOARD, new ScoreboardScreen(this::showStartMenu));
 
         gameOverScreen = register(AppState.GAME_OVER,
-                new GameOverScreen(this::startGame, this::showScoreboard, this::showStartMenu, this::exit));
+                new GameOverScreen(this::restartGame, this::showScoreboard, this::showStartMenu, this::exit));
         inputHandler.setActionListener(this::handleAction);
         this.loop.setTickListener(() -> handleAction(GameAction.TICK));
         gameScreen.setInputHandler(inputHandler);
@@ -137,7 +140,7 @@ public class AppController {
     /** 같은 조회 시점의 게임 상태와 앱 후처리 정보를 UI에 제공한다. */
     public AppState.Snapshot snapshot() {
         requireEdt();
-        return new AppState.Snapshot(state, engine.state(), interval, scores.highScore(),
+        return new AppState.Snapshot(state, engine.state(), interval, scores.highScore(engine.state().mode()),
                 awaitingScoreName, lastRegisteredScore, settings, persistenceError);
     }
     public void start() {
@@ -152,13 +155,21 @@ public class AppController {
     }
     /** 메뉴 복귀 전의 게임을 이어 하지 않고 점수·진행·랭킹 입력 대기를 초기화한다. */
     public void startGame() {
+        startGame(GameMode.NORMAL);
+    }
+
+    public void restartGame() { startGame(engine.state().mode()); }
+
+    public void startGame(GameMode mode) {
         requireEdt();
+        Objects.requireNonNull(mode);
         if (state == AppState.EXIT) return;
         if (!resolvePendingScore()) return;
         loop.stop();
         gameScreen.hideMenu();
         settingsFromGame = false;
-        engine.newGame(settingsService == null ? Difficulty.NORMAL : settingsService.current().difficulty());
+        engine.newGame(mode,
+                settingsService == null ? Difficulty.NORMAL : settingsService.current().difficulty());
         gameOverHandled = false;
         awaitingScoreName = false;
         lastRegisteredScore = null;
@@ -199,7 +210,7 @@ public class AppController {
     }
     public void showScoreboard() {
         activate(AppState.SCOREBOARD, () -> {
-            scoreboardScreen.showScreen(scores.top(), lastRegisteredScore);
+            scoreboardScreen.showScreen(scores.allModes(), lastRegisteredScore);
             scoreboardScreen.showMessage(persistenceError);
         });
     }
@@ -222,8 +233,9 @@ public class AppController {
         GameState before = engine.state();
         GameActionResult result = engine.apply(action);
 
-        long gained = (long) scoreSystem.onDrop(result.droppedRows(),
-                interval < SpeedSystem.INITIAL_INTERVAL_MILLIS) + scoreSystem.onLineClear(result.clearedRows());
+        boolean awardsScore = before.currentPiece() != null && PieceRules.forPiece(before.currentPiece()).awardsScore();
+        long gained = awardsScore ? (long) scoreSystem.onDrop(result.droppedRows(),
+                interval < SpeedSystem.INITIAL_INTERVAL_MILLIS) + scoreSystem.onLineClear(result.clearedRows()) : 0;
         updateProgress(Math.addExact(before.score(), gained));
 
         if (result.currentPhase() == GamePhase.PAUSED && result.previousPhase() == GamePhase.RUNNING) loop.pause();
@@ -266,7 +278,7 @@ public class AppController {
         if (gameOverHandled) return;
         gameOverHandled = true;
         loop.stop();
-        awaitingScoreName = scores.qualifies(engine.state().score());
+        awaitingScoreName = scores.qualifies(engine.state().score(), engine.state().mode());
 
         activate(AppState.GAME_OVER,
                 () -> gameOverScreen.showScreen(engine.state().score(), awaitingScoreName));
@@ -275,7 +287,7 @@ public class AppController {
     public void registerScore(String name) {
         requireEdt();
         if (state == AppState.EXIT || !awaitingScoreName) return;
-        if (pendingScore == null) pendingScore = new ScoreEntry(name, engine.state().score());
+        if (pendingScore == null) pendingScore = new ScoreEntry(name, engine.state().score(), engine.state().mode());
         retryScoreSave();
     }
     // 성공하거나 저장 대기가 없으면 true. 실패 시 기록과 오류를 유지하고 false를 반환한다.
@@ -285,7 +297,7 @@ public class AppController {
         if (pendingScore == null) return true;
         try {
             ScoreEntry entry = pendingScore;
-            scores.register(entry.name(), entry.score());
+            scores.register(entry.name(), entry.score(), entry.mode());
             // 영구 저장이 성공한 뒤에만 입력 대기를 해제하고 UI 강조용 기록을 확정한다.
             persistenceError = null;
             lastRegisteredScore = entry;

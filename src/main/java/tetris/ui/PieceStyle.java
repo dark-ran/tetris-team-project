@@ -3,12 +3,14 @@ package tetris.ui;
 import java.awt.BasicStroke;
 import java.awt.Color;
 import java.awt.Font;
+import java.awt.FontMetrics;
 import java.awt.Graphics;
 import java.awt.Graphics2D;
 import java.awt.Polygon;
 import java.awt.RenderingHints;
 import java.awt.Shape;
 import java.util.Map;
+import tetris.piece.ItemType;
 import tetris.piece.PieceType;
 import tetris.settings.ColorVisionMode;
 
@@ -38,11 +40,10 @@ final class PieceStyle {
             Shape originalClip = g.getClip();
             Color fill = colorFor(type, mode);
             g.setColor(fill); g.fillRect(x, y, size, size);
-            // Item-only single cell is identified by a character even when patterns are disabled.
             if (type == PieceType.SINGLE) {
                 g.setColor(Color.BLACK);
                 g.setFont(new Font(Font.SANS_SERIF, Font.BOLD, Math.max(1, size * 3 / 4)));
-                var metrics = g.getFontMetrics();
+                FontMetrics metrics = g.getFontMetrics();
                 g.drawString("1", x + (size - metrics.stringWidth("1")) / 2,
                         y + (size - metrics.getHeight()) / 2 + metrics.getAscent());
             }
@@ -75,10 +76,28 @@ final class PieceStyle {
                         g.drawPolygon(new Polygon(new int[] {x + mid, x + size - edge, x + mid, x + edge},
                                 new int[] {y + edge, y + mid, y + size - edge, y + mid}, 4));
                     }
+                    case SINGLE -> { }
                 }
             }
             g.setClip(originalClip); g.setStroke(new BasicStroke(1f));
             g.setColor(CELL_BORDER); g.drawRect(x, y, size - 1, size - 1);
+        } finally { g.dispose(); }
+    }
+
+    /** 色상과 무늬에 관계없이 아이템 문자를 같은 대비로 표시한다. */
+    static void paintItem(Graphics graphics, ItemType item, int x, int y, int size) {
+        if (item == ItemType.NONE) return;
+        Graphics2D g = (Graphics2D) graphics.create();
+        try {
+            g.setRenderingHint(RenderingHints.KEY_TEXT_ANTIALIASING, RenderingHints.VALUE_TEXT_ANTIALIAS_ON);
+            int inset = Math.max(1, size / 8);
+            g.setColor(new Color(0x181818));
+            g.fillRect(x + inset, y + inset, size - inset * 2, size - inset * 2);
+            g.setColor(Color.WHITE);
+            g.setFont(new Font(Font.SANS_SERIF, Font.BOLD, Math.max(8, size * 3 / 4)));
+            FontMetrics metrics = g.getFontMetrics();
+            g.drawString(item.symbol(), x + (size - metrics.stringWidth(item.symbol())) / 2,
+                    y + (size - metrics.getHeight()) / 2 + metrics.getAscent());
         } finally { g.dispose(); }
     }
 
