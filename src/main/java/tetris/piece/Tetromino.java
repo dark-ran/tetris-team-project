@@ -5,14 +5,17 @@ import java.util.Comparator;
 import java.util.Objects;
 
 /**
- * 네 칸으로 이루어진 블록의 종류와 모양을 보관한다.
+ * 일반 블록과 아이템의 종류·모양을 보관한다. 일반 블록은 네 칸이고,
+ * SINGLE 특수 블록은 한 칸이다.
  * 좌표는 회전 기준 정사각형 안의 [행, 열]이며, 생성 후에는 모양이 바뀌지 않는다.
- * 보드 위의 위치와 회전 가능 여부는 게임 엔진과 보드에서 관리한다.
  */
 public final class Tetromino {
     private final PieceType type;
     private final int rotationSize;
     private final int[][] occupiedCells;
+    private final ItemType itemType;
+    private final int itemRow;
+    private final int itemColumn;
 
     /** 지정한 종류의 초기 모양을 생성한다. */
     public Tetromino(PieceType type) {
@@ -20,6 +23,7 @@ public final class Tetromino {
         rotationSize = switch (type) {
             case I -> 4;
             case O -> 2;
+            case SINGLE -> 1;
             default -> 3;
         };
         occupiedCells = switch (type) {
@@ -30,26 +34,92 @@ public final class Tetromino {
             case Z -> new int[][] {{0, 0}, {0, 1}, {1, 1}, {1, 2}};
             case J -> new int[][] {{0, 0}, {1, 0}, {1, 1}, {1, 2}};
             case L -> new int[][] {{0, 2}, {1, 0}, {1, 1}, {1, 2}};
+            case SINGLE -> new int[][] {{0, 0}};
         };
+        itemType = ItemType.NONE;
+        itemRow = itemColumn = -1;
     }
 
-    private Tetromino(PieceType type, int rotationSize, int[][] occupiedCells) {
-        this.type = type;
+    private Tetromino(PieceType type, int rotationSize, int[][] occupiedCells,
+            ItemType itemType, int itemRow, int itemColumn) {
+        this.type = Objects.requireNonNull(type);
         this.rotationSize = rotationSize;
-        this.occupiedCells = occupiedCells;
+        this.occupiedCells = new int[occupiedCells.length][];
+        for (int index = 0; index < occupiedCells.length; index++) {
+            this.occupiedCells[index] = occupiedCells[index].clone();
+        }
+        this.itemType = Objects.requireNonNull(itemType);
+        this.itemRow = itemRow;
+        this.itemColumn = itemColumn;
     }
 
-    /** 블록의 종류를 반환한다. 회전해도 종류는 바뀌지 않는다. */
-    public PieceType type() {
-        return type;
+    /** P 아이템의 실제 한 칸 모양. */
+    public static Tetromino singleCell() {
+        return new Tetromino(PieceType.SINGLE);
     }
 
-    /** 회전 기준 정사각형의 한 변에 포함된 칸 수를 반환한다. */
-    public int rotationSize() {
-        return rotationSize;
+    public boolean isSingleCell() {
+        return occupiedCells.length == 1;
     }
 
-    /** 차지하는 네 칸을 행·열 순서로 반환한다. 반환 배열을 수정해도 블록은 바뀌지 않는다. */
+    /** 블록이 차지하는 칸 중 지정한 한 칸에 일반 아이템을 붙인 새 블록을 반환한다. */
+    public Tetromino withItem(ItemType itemType, int cellIndex) {
+        Objects.requireNonNull(itemType);
+        if (itemType == ItemType.NONE || itemType.isStandalone() || itemType.marksAllCells()
+                || this.itemType.isStandalone() || this.itemType.marksAllCells()
+                || cellIndex < 0 || cellIndex >= occupiedCells.length) {
+            throw new IllegalArgumentException("아이템 종류와 블록 안의 칸 번호가 필요합니다.");
+        }
+        int[] cell = occupiedCells[cellIndex];
+        return new Tetromino(type, rotationSize, occupiedCells, itemType, cell[0], cell[1]);
+    }
+
+    /** 일반 블록의 모든 칸에 같은 아이템을 붙인다. 모양과 회전 방향은 유지한다. */
+    public Tetromino withItem(ItemType itemType) {
+        Objects.requireNonNull(itemType);
+        if (!itemType.marksAllCells() || itemType.isStandalone() || this.itemType != ItemType.NONE) {
+            throw new IllegalArgumentException("일반 블록 전체에 붙일 아이템이 필요합니다.");
+        }
+        return new Tetromino(type, rotationSize, occupiedCells, itemType, -1, -1);
+    }
+
+    /** 폭 4칸의 무게추. 위쪽 두 칸과 아래쪽 네 칸을 W로 표시한다. */
+    public static Tetromino weight() {
+        return new Tetromino(PieceType.I, 4,
+                new int[][] {{0, 1}, {0, 2}, {1, 0}, {1, 1}, {1, 2}, {1, 3}},
+                ItemType.WEIGHT, -1, -1);
+    }
+
+    /** 가로 세 칸의 다이너마이트. 가운데 칸에 B를 표시하며 Z의 색상을 사용한다. */
+    public static Tetromino bomb() {
+        return new Tetromino(PieceType.Z, 3, new int[][] {{0, 0}, {0, 1}, {0, 2}},
+                ItemType.BOMB, 0, 1);
+    }
+
+    public ItemType itemType() { return itemType; }
+    public int itemRow() { return itemRow; }
+    public int itemColumn() { return itemColumn; }
+
+    public boolean hasItemAt(int row, int column) {
+        if (itemType.marksAllCells()) {
+            for (int[] cell : occupiedCells) {
+                if (cell[0] == row && cell[1] == column) return true;
+            }
+            return false;
+        }
+        return itemType != ItemType.NONE && itemRow == row && itemColumn == column;
+    }
+
+    /** O 블록도 아이템 위치가 달라지면 서로 다른 배치이다. */
+    public boolean hasSameLayout(Tetromino other) {
+        return other != null && type == other.type && Arrays.deepEquals(occupiedCells, other.occupiedCells)
+                && itemType == other.itemType && itemRow == other.itemRow && itemColumn == other.itemColumn;
+    }
+
+    public PieceType type() { return type; }
+    public int rotationSize() { return rotationSize; }
+
+    /** 차지하는 칸을 행·열 순서로 반환한다. */
     public int[][] cells() {
         int[][] copiedCells = new int[occupiedCells.length][];
         for (int index = 0; index < occupiedCells.length; index++) {
@@ -67,6 +137,8 @@ public final class Tetromino {
         }
         Arrays.sort(rotatedCells, Comparator.comparingInt((int[] cell) -> cell[0])
                 .thenComparingInt(cell -> cell[1]));
-        return new Tetromino(type, rotationSize, rotatedCells);
+        boolean marked = itemRow >= 0;
+        return new Tetromino(type, rotationSize, rotatedCells, itemType,
+                marked ? itemColumn : -1, marked ? rotationSize - 1 - itemRow : -1);
     }
 }

@@ -32,7 +32,7 @@ class TetrominoTest {
     }
 
     @ParameterizedTest(name = "{0}은 네 번 회전하면 원래 모양")
-    @EnumSource(PieceType.class)
+    @EnumSource(value = PieceType.class, names = {"I", "O", "T", "S", "Z", "J", "L"})
     void fourRotationsReturnToTheInitialShapeWithoutChangingTheOriginal(PieceType type) {
         Tetromino original = new Tetromino(type);
         int[][] initialCells = original.cells();
@@ -48,7 +48,7 @@ class TetrominoTest {
     }
 
     @ParameterizedTest(name = "{0}의 반환 좌표 수정은 블록에 영향을 주지 않음")
-    @EnumSource(PieceType.class)
+    @EnumSource(value = PieceType.class, names = {"I", "O", "T", "S", "Z", "J", "L"})
     void returnedCoordinatesDoNotExposeTheStoredShape(PieceType type) {
         Tetromino piece = new Tetromino(type);
         int[][] expected = piece.cells();

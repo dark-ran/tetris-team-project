@@ -11,13 +11,17 @@ import javax.swing.*;
 import tetris.settings.GameSettings;
 import tetris.settings.ColorVisionMode;
 import tetris.piece.PieceType;
+import tetris.game.Difficulty;
 
 /** Edits a draft; the controller validates and persists it before applying it to the game. */
 public class SettingsScreen extends JPanel {
     static { AppTheme.install(); }
     public record Values(int preset, ColorVisionMode colorVisionMode, boolean patternsEnabled,
-            Map<String, Integer> keys) {
-        public Values { Objects.requireNonNull(colorVisionMode); keys = Map.copyOf(keys); }
+            Map<String, Integer> keys, Difficulty difficulty) {
+        public Values { Objects.requireNonNull(colorVisionMode); Objects.requireNonNull(difficulty); keys = Map.copyOf(keys); }
+        public Values(int preset, ColorVisionMode colorVisionMode, boolean patternsEnabled, Map<String, Integer> keys) {
+            this(preset, colorVisionMode, patternsEnabled, keys, Difficulty.NORMAL);
+        }
         public Values(int preset, boolean colorBlind, Map<String, Integer> keys) {
             this(preset, colorBlind ? ColorVisionMode.DEUTAN : ColorVisionMode.NORMAL, colorBlind, keys);
         }
@@ -25,6 +29,7 @@ public class SettingsScreen extends JPanel {
     }
     private final JComboBox<String> preset = new JComboBox<>(new String[] {"작게 (900 × 760)", "보통 (1040 × 860)", "크게 (1280 × 1024)"});
     private final JComboBox<ColorVisionMode> colorMode = new JComboBox<>(ColorVisionMode.values());
+    private final JComboBox<Difficulty> difficulty = new JComboBox<>(Difficulty.values());
     private final JCheckBox patterns = new JCheckBox("블록 패턴 표시");
     private final JPanel previews = ScreenSupport.transparentPanel(new GridLayout(1, 7, 10, 0));
     private final JLabel patternHint = ScreenSupport.mutedLabel(" ");
@@ -42,6 +47,9 @@ public class SettingsScreen extends JPanel {
         ScreenSupport.prepareScreen(this, "설정", "창 크기는 즉시 적용한 뒤 유지 여부를 확인합니다. 색각 모드·패턴·조작 키는 저장 후 적용됩니다.");
         JPanel fields = new JPanel(new GridLayout(0, 2, 18, 12)); fields.setOpaque(false);
         fields.add(new JLabel("화면 크기")); fields.add(preset); preset.setSelectedIndex(1);
+        fields.add(new JLabel("난이도 (다음 게임부터 적용)")); fields.add(difficulty);
+        difficulty.setSelectedItem(Difficulty.NORMAL);
+        difficulty.getAccessibleContext().setAccessibleName("게임 난이도");
         fields.add(new JLabel("색각 모드")); fields.add(colorMode);
         fields.add(new JLabel("패턴")); patterns.setOpaque(false); patterns.setForeground(AppTheme.TEXT); fields.add(patterns);
         colorMode.addActionListener(event -> {
@@ -95,18 +103,19 @@ public class SettingsScreen extends JPanel {
     public void setOnRestoreDefaults(Runnable callback) { onRestore = Objects.requireNonNull(callback); restoreButton.setEnabled(true); }
     public void setOnResetScores(Runnable callback) { onReset = Objects.requireNonNull(callback); resetButton.setEnabled(true); }
     public void setOnWindowSizePreview(IntPredicate callback) { onWindowSizePreview = Objects.requireNonNull(callback); }
-    public Values values() { return new Values(preset.getSelectedIndex(), (ColorVisionMode) colorMode.getSelectedItem(), patterns.isSelected(), keys); }
+    public Values values() { return new Values(preset.getSelectedIndex(), (ColorVisionMode) colorMode.getSelectedItem(), patterns.isSelected(), keys, (Difficulty) difficulty.getSelectedItem()); }
     public void showValues(Values current) {
         refreshing = true;
         try {
             confirmedPreset = current.preset(); preset.setSelectedIndex(current.preset());
             colorMode.setSelectedItem(current.colorVisionMode()); patterns.setSelected(current.patternsEnabled());
+            difficulty.setSelectedItem(current.difficulty());
             current.keys().forEach((action, code) -> { if (keyButtons.containsKey(action)) { keys.put(action, code); keyButtons.get(action).setText(SwingKeyBindings.keyText(code)); } });
             feedback.setText(" ");
         } finally { refreshing = false; }
         refreshPreviews();
     }
-    public void showSettings(GameSettings current) { showValues(new Values(current.windowSizePreset(), current.colorVisionMode(), current.piecePatternsEnabled(), current.keyBindings())); }
+    public void showSettings(GameSettings current) { showValues(new Values(current.windowSizePreset(), current.colorVisionMode(), current.piecePatternsEnabled(), current.keyBindings(), current.difficulty())); }
     public void showMessage(String message) { feedback.setText(message == null ? " " : message); }
     private void runSafely(Runnable action) {
         feedback.setText(" ");
@@ -118,7 +127,7 @@ public class SettingsScreen extends JPanel {
     private void refreshPreviews() {
         ColorVisionMode selected = (ColorVisionMode) colorMode.getSelectedItem();
         previews.removeAll();
-        for (PieceType type : PieceType.values()) {
+        for (PieceType type : PieceType.standardTypes()) {
             JPanel tile = ScreenSupport.transparentPanel(new BorderLayout(0, 6));
             JPanel mark = ScreenSupport.transparentPanel(new GridBagLayout());
             mark.add(new TetrominoMark(type, selected, patterns.isSelected())); tile.add(mark, BorderLayout.CENTER);

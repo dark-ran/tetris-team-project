@@ -2,7 +2,10 @@ package tetris.board;
 
 import java.util.Arrays;
 import java.util.Objects;
+import java.util.LinkedHashSet;
+import java.util.Set;
 import tetris.piece.Tetromino;
+import tetris.piece.ItemType;
 
 /** 20행 10열의 고정된 블록을 보관하고 배치 검사, 블록 고정, 완성된 줄 삭제를 담당한다. */
 public final class Board {
@@ -15,31 +18,85 @@ public final class Board {
     public static final int COLS = COLUMNS;
 
     private final int[][] fixedCells = new int[ROWS][COLUMNS];
+    private final ItemType[][] fixedItems = new ItemType[ROWS][COLUMNS];
+
+    public Board() {
+        reset();
+    }
 
     /** 모든 칸을 비워 새 게임을 준비한다. */
     public void reset() {
         for (int[] row : fixedCells) {
             Arrays.fill(row, EMPTY_CELL);
         }
+        for (ItemType[] row : fixedItems) Arrays.fill(row, ItemType.NONE);
     }
 
     /**
      * 회전 기준 정사각형의 왼쪽 위를 지정한 행·열에 놓을 수 있는지 확인한다.
-     * 블록이 차지하는 네 칸만 검사하며, 한 칸이라도 보드 밖이거나 이미 채워져 있으면 false이다.
+     * 블록이 차지하는 칸만 검사하며, 한 칸이라도 보드 밖이거나 이미 채워져 있으면 false이다.
      */
     public boolean canPlace(Tetromino piece, int row, int column) {
         Objects.requireNonNull(piece, "배치할 블록이 필요합니다.");
-        for (int[] cell : piece.cells()) {
+        int[][] cells = piece.cells();
+        if (!withinBounds(cells, row, column)) return false;
+        for (int[] cell : cells) {
+            if (fixedCells[row + cell[0]][column + cell[1]] != EMPTY_CELL) return false;
+        }
+        return true;
+    }
+
+    /** 고정 블록과의 충돌을 제외하고 보드 경계만 검사한다. 조회로 보드를 바꾸지 않는다. */
+    public boolean withinBounds(Tetromino piece, int row, int column) {
+        Objects.requireNonNull(piece, "배치할 블록이 필요합니다.");
+        return withinBounds(piece.cells(), row, column);
+    }
+
+    private static boolean withinBounds(int[][] cells, int row, int column) {
+        for (int[] cell : cells) {
             long boardRow = (long) row + cell[0];
             long boardColumn = (long) column + cell[1];
             if (boardRow < 0 || boardRow >= ROWS || boardColumn < 0 || boardColumn >= COLUMNS) {
                 return false;
             }
-            if (fixedCells[(int) boardRow][(int) boardColumn] != EMPTY_CELL) {
-                return false;
-            }
         }
         return true;
+    }
+
+    /** 지정한 모양과 겹치는 고정 칸만 지운다. 줄 전체를 내리거나 삭제하지 않는다. */
+    public int removeCells(Tetromino piece, int row, int column) {
+        Objects.requireNonNull(piece);
+        int[][] cells = piece.cells();
+        if (!withinBounds(cells, row, column)) {
+            throw new IllegalArgumentException("블록을 제거할 위치가 보드 밖입니다.");
+        }
+        int removed = 0;
+        for (int[] cell : cells) {
+            if (fixedCells[row + cell[0]][column + cell[1]] != EMPTY_CELL) removed++;
+            fixedCells[row + cell[0]][column + cell[1]] = EMPTY_CELL;
+            fixedItems[row + cell[0]][column + cell[1]] = ItemType.NONE;
+        }
+        return removed;
+    }
+
+    /** 중심에서 지정한 거리 안의 사각 영역을 비운다. 보드 밖은 제외하고 나머지 칸은 내리지 않는다. */
+    public int removeArea(int centerRow, int centerColumn, int radius) {
+        if (centerRow < 0 || centerRow >= ROWS || centerColumn < 0 || centerColumn >= COLUMNS || radius < 0) {
+            throw new IllegalArgumentException("보드 안의 중심과 0 이상의 범위가 필요합니다.");
+        }
+        int top = (int) Math.max(0L, (long) centerRow - radius);
+        int bottom = (int) Math.min(ROWS - 1L, (long) centerRow + radius);
+        int left = (int) Math.max(0L, (long) centerColumn - radius);
+        int right = (int) Math.min(COLUMNS - 1L, (long) centerColumn + radius);
+        int removed = 0;
+        for (int row = top; row <= bottom; row++) {
+            for (int column = left; column <= right; column++) {
+                if (fixedCells[row][column] != EMPTY_CELL) removed++;
+                fixedCells[row][column] = EMPTY_CELL;
+                fixedItems[row][column] = ItemType.NONE;
+            }
+        }
+        return removed;
     }
 
     /** 배치 가능한 블록의 칸 저장값을 기록한다. 잘못된 위치이면 보드를 변경하지 않고 예외를 발생시킨다. */
@@ -49,30 +106,59 @@ public final class Board {
         }
         for (int[] cell : piece.cells()) {
             fixedCells[row + cell[0]][column + cell[1]] = piece.type().cellValue();
+            fixedItems[row + cell[0]][column + cell[1]] =
+                    piece.hasItemAt(cell[0], cell[1]) ? piece.itemType() : ItemType.NONE;
         }
+    }
+
+    /** 고정된 칸의 아이템. 빈 칸과 일반 칸은 NONE이며, 보드 사본에서도 유지된다. */
+    public ItemType itemAt(int row, int column) {
+        return fixedItems[Objects.checkIndex(row, ROWS)][Objects.checkIndex(column, COLUMNS)];
     }
 
     /** 완성된 줄을 모두 삭제하고 위쪽 줄을 내린 뒤, 삭제한 줄 수를 반환한다. */
     public int clearFullRows() {
+        return clearRows(fullRows());
+    }
+
+    /** 현재 꽉 찬 행의 번호. 삭제 전에 조회하므로 여러 효과의 중복 행을 합칠 수 있다. */
+    public Set<Integer> fullRows() {
+        Set<Integer> rows = new LinkedHashSet<>();
+        for (int row = 0; row < ROWS; row++) {
+            if (isFullRow(row)) rows.add(row);
+        }
+        return Set.copyOf(rows);
+    }
+
+    /** 지정한 행을 한 번에 삭제한다. 같은 행은 한 번만 삭제하며 위쪽 칸을 내린다. */
+    public int clearRows(Set<Integer> rows) {
+        Objects.requireNonNull(rows);
+        for (Integer row : rows) {
+            if (row == null || row < 0 || row >= ROWS) {
+                throw new IllegalArgumentException("삭제할 행이 보드 밖입니다.");
+            }
+        }
         int destinationRow = ROWS - 1;
         int clearedRows = 0;
         for (int sourceRow = ROWS - 1; sourceRow >= 0; sourceRow--) {
-            if (isFullRow(sourceRow)) {
+            if (rows.contains(sourceRow)) {
                 clearedRows++;
                 continue;
             }
             if (sourceRow != destinationRow) {
                 System.arraycopy(fixedCells[sourceRow], 0, fixedCells[destinationRow], 0, COLUMNS);
+                System.arraycopy(fixedItems[sourceRow], 0, fixedItems[destinationRow], 0, COLUMNS);
             }
             destinationRow--;
         }
         for (int row = destinationRow; row >= 0; row--) {
             Arrays.fill(fixedCells[row], EMPTY_CELL);
+            Arrays.fill(fixedItems[row], ItemType.NONE);
         }
         return clearedRows;
     }
 
-    /** 빈 칸은 0, 고정된 블록은 1~7인 보드 사본을 반환한다. 현재 이동 중인 블록은 포함하지 않는다. */
+    /** 빈 칸은 0, 고정된 블록은 PieceType의 칸 저장값인 보드 사본을 반환한다. */
     public int[][] snapshot() {
         int[][] copiedCells = new int[ROWS][];
         for (int row = 0; row < ROWS; row++) {
@@ -86,6 +172,7 @@ public final class Board {
         Board copiedBoard = new Board();
         for (int row = 0; row < ROWS; row++) {
             System.arraycopy(fixedCells[row], 0, copiedBoard.fixedCells[row], 0, COLUMNS);
+            System.arraycopy(fixedItems[row], 0, copiedBoard.fixedItems[row], 0, COLUMNS);
         }
         return copiedBoard;
     }

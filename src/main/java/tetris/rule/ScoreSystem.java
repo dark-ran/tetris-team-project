@@ -8,6 +8,12 @@ public class ScoreSystem {
         return Math.multiplyExact(movedCells, accelerated ? 2 : 1);
     }
 
+    /** 줄 삭제 점수에만 배율을 적용한다. */
+    public int onLineClear(int clearedRows, int multiplier) {
+        if (multiplier < 1) throw new IllegalArgumentException("multiplier must be positive");
+        return Math.multiplyExact(onLineClear(clearedRows), multiplier);
+    }
+
     public int onLineClear(int clearedRows) {
         return switch (clearedRows) {
             case 0 -> 0;

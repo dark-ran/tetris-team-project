@@ -85,7 +85,7 @@ class ScoreBoardTest {
         ScoreBoardService service = new ScoreBoardService(repository);
         service.register("  플레이어  ", 6_000_000_000L);
         service.register("two", 10);
-        assertEquals("TETRIS-SCORES-1\n플레이어\t6000000000\ntwo\t10\n",
+        assertEquals("TETRIS-SCORES-2\n플레이어\t6000000000\tNORMAL\ntwo\t10\tNORMAL\n",
                 Files.readString(repository.path(), java.nio.charset.StandardCharsets.UTF_8));
         assertEquals(new ScoreEntry("플레이어", 6_000_000_000L), service.top().getFirst());
         assertEquals(service.top(), new ScoreBoardService(repository).top());

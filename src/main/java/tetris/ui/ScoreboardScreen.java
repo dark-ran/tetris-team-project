@@ -4,6 +4,7 @@ import java.awt.BorderLayout;
 import java.util.List;
 import java.util.Objects;
 import javax.swing.JButton;
+import javax.swing.JComboBox;
 import javax.swing.JLabel;
 import javax.swing.JPanel;
 import javax.swing.JScrollPane;
@@ -13,6 +14,7 @@ import javax.swing.border.EmptyBorder;
 import javax.swing.table.DefaultTableCellRenderer;
 import javax.swing.table.DefaultTableModel;
 import tetris.scoreboard.ScoreEntry;
+import tetris.game.GameMode;
 
 /**
  * Displays ranked records and highlights the newest matching entry.
@@ -31,6 +33,8 @@ public class ScoreboardScreen extends JPanel {
     private final JLabel feedback = new JLabel(" ");
     private Runnable onReset;
     private JTable table;
+    private final JComboBox<GameMode> modeSelector = new JComboBox<>(GameMode.values());
+    private List<ScoreEntry> allEntries = List.of();
 
     public ScoreboardScreen(Runnable onBack) {
         ScreenSupport.prepareScreen(this, "스코어보드",
@@ -40,6 +44,9 @@ public class ScoreboardScreen extends JPanel {
         resetButton.setEnabled(false);
 
         JPanel tableFrame = ScreenSupport.framedPanel(new BorderLayout());
+        modeSelector.getAccessibleContext().setAccessibleName("점수 기록 모드");
+        modeSelector.addActionListener(event -> renderSelectedMode());
+        tableFrame.add(modeSelector, BorderLayout.NORTH);
         tableFrame.add(recordTable(), BorderLayout.CENTER);
         feedback.setForeground(AppTheme.YELLOW);
         feedback.setBorder(new EmptyBorder(10, 0, 0, 0));
@@ -70,16 +77,29 @@ public class ScoreboardScreen extends JPanel {
     }
 
     public void showScreen(List<ScoreEntry> entries) {
-        clearRecords();
+        allEntries = List.copyOf(entries);
+        renderSelectedMode();
+        SwingKeyBindings.focus(backButton);
+    }
+
+    private List<ScoreEntry> selectedEntries() {
+        return allEntries.stream().filter(entry -> entry.mode() == modeSelector.getSelectedItem()).toList();
+    }
+
+    private void renderSelectedMode() {
+        List<ScoreEntry> entries = selectedEntries();
+        table.clearSelection();
+        records.setRowCount(0);
+        showMessage(null);
         for (int index = 0; index < entries.size(); index++) {
             ScoreEntry entry = entries.get(index);
             records.addRow(new Object[] {index + 1, entry.name(), entry.score()});
         }
-        SwingKeyBindings.focus(backButton);
     }
 
     /** 화면의 기록·선택·메시지만 비운다. 영구 저장소 초기화는 앱 제어에서 처리한다. */
     public void clearRecords() {
+        allEntries = List.of();
         table.clearSelection(); records.setRowCount(0); showMessage(null);
     }
 
@@ -97,8 +117,10 @@ public class ScoreboardScreen extends JPanel {
         catch (java.io.UncheckedIOException | IllegalArgumentException ex) { showMessage(ex.getMessage()); }
     }
     public void showScreen(List<ScoreEntry> entries, ScoreEntry highlighted) {
+        if (highlighted != null) modeSelector.setSelectedItem(highlighted.mode());
         showScreen(entries);
         if (highlighted == null) return;
+        entries = selectedEntries();
         int selected = -1;
         for (int i = 0; i < entries.size(); i++) {
             ScoreEntry entry = entries.get(i);
