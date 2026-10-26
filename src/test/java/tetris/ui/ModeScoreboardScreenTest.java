@@ -13,6 +13,16 @@ import tetris.game.GameMode;
 import tetris.scoreboard.ScoreEntry;
 
 class ModeScoreboardScreenTest {
+    @Test void identicalRecordsHighlightTheNewestEntryAfterStableTieOrdering() throws Exception {
+        SwingUtilities.invokeAndWait(() -> {
+            ScoreboardScreen screen = new ScoreboardScreen(() -> {});
+            ScoreEntry old = new ScoreEntry("player", 100, GameMode.ITEM, Difficulty.HARD);
+            ScoreEntry latest = new ScoreEntry("player", 100, GameMode.ITEM, Difficulty.HARD);
+            screen.showScreen(List.of(old, latest), latest);
+            assertEquals(1, find(screen, JTable.class).getSelectedRow());
+        });
+    }
+
     @Test void difficultyIsVisibleAndMatchingNameAndScoreDoNotHighlightADifferentDifficulty() throws Exception {
         SwingUtilities.invokeAndWait(() -> {
             ScoreboardScreen screen = new ScoreboardScreen(() -> {});

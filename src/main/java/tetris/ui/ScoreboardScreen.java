@@ -124,7 +124,7 @@ public class ScoreboardScreen extends JPanel {
         int selected = -1;
         for (int i = 0; i < entries.size(); i++) {
             ScoreEntry entry = entries.get(i);
-            if (entry.equals(highlighted)) { selected = i; break; }
+            if (entry.equals(highlighted)) selected = i;
         }
         if (selected >= 0) {
             table.setRowSelectionInterval(selected, selected);
