@@ -1,0 +1,62 @@
+{
+  "test": {
+    "tests": 541,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0
+  },
+  "reviewIntegrationTest": {
+    "tests": 1,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0
+  },
+  "reviewWindowTest": {
+    "tests": 9,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0
+  },
+  "gameplayPerformanceTest": {
+    "tests": 6,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0
+  },
+  "coverage": {
+    "INSTRUCTION": {
+      "covered": 12947,
+      "missed": 928
+    },
+    "BRANCH": {
+      "covered": 766,
+      "missed": 141
+    },
+    "LINE": {
+      "covered": 2229,
+      "missed": 155
+    },
+    "COMPLEXITY": {
+      "covered": 855,
+      "missed": 166
+    },
+    "METHOD": {
+      "covered": 508,
+      "missed": 43
+    },
+    "CLASS": {
+      "covered": 67,
+      "missed": 4
+    }
+  },
+  "performance": [
+    "preset=0 mode=단색 (Monochrome) samples=300 p95_ms=0.811 max_ms=2.038 heap_used_mib=42.18 components=63",
+    "preset=0 mode=일반 samples=300 p95_ms=0.714 max_ms=0.828 heap_used_mib=51.39 components=63",
+    "preset=1 mode=단색 (Monochrome) samples=300 p95_ms=0.623 max_ms=1.531 heap_used_mib=46.19 components=63",
+    "preset=1 mode=일반 samples=300 p95_ms=0.562 max_ms=3.162 heap_used_mib=29.12 components=63",
+    "preset=2 mode=단색 (Monochrome) samples=300 p95_ms=0.644 max_ms=1.259 heap_used_mib=54.15 components=63",
+    "preset=2 mode=일반 samples=300 p95_ms=0.557 max_ms=1.310 heap_used_mib=36.25 components=63"
+  ],
+  "source": "83a5c48dee77950a490404ed796f75046ba120f2",
+  "functional_main": "3ccf29117d6952020b05ca8ca051c45ba3c8d0d2"
+}

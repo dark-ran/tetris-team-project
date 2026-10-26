@@ -1,347 +1,47 @@
-# Development Guide
+# 개발과 검증
 
-> 이 문서는 개발 환경과 GitHub 협업 방식에 대한 **초안/제안안**입니다.
-> 팀 합의에 따라 변경할 수 있습니다.
+Java 21, Gradle Wrapper 8.14.4, Swing, JUnit 5, JaCoCo를 사용한다. Gradle과 Wrapper JAR는 저장소에 포함되어 별도 Gradle 설치 없이 빌드할 수 있다.
 
-## 1. 기술 스택 제안
-
-| 항목 | 제안 | 비고 |
-|---|---|---|
-| Language | Java 21+ | Java 21이상인 버젼에서 작동되어야 함 |
-| GUI | Java Swing | Java 기본 제공 GUI 사용 제안 |
-| Build Tool | Gradle | Build/Test/Coverage 자동화 |
-| Gradle DSL | Groovy DSL (`build.gradle`) | 단순한 설정을 위해 제안 |
-| Gradle 실행 | Gradle Wrapper | 팀원별 Gradle 별도 설치 불필요 |
-| Unit Test | JUnit 5 | 단위 테스트 |
-| Coverage | JaCoCo | Line Coverage 관리 |
-| VCS | Git + GitHub | 코드 및 변경 이력 관리 |
-| CI | GitHub Actions | Windows/macOS Push/PR 자동 검증 제안 |
-| 배포 | jpackage | OS별 Windows 실행파일/macOS 앱 생성 제안 |
-| 저장 | 파일 기반 | 설정/스코어보드 영구 저장 방식 제안 |
-| 대상 OS | Windows 11 + macOS 26 이상 | 팀원 소유 기기별 배포 및 테스트 진행 |
-
-### 사용하지 않는 방향
-
-현재 제안에서는 다음을 사용하지 않는다.
-
-```text
-Maven / pom.xml / mvn
-Kotlin / build.gradle.kts / kotlinc
-```
-
-이는 과제 금지사항이 아니라 팀 개발환경 단순화를 위한 제안이다.
-
-## 2. Gradle Wrapper
-
-Repository에 다음 파일을 포함한다.
-
-```text
-build.gradle
-settings.gradle
-gradle.properties
-gradlew
-gradlew.bat
-gradle/wrapper/gradle-wrapper.jar
-gradle/wrapper/gradle-wrapper.properties
-```
-
-Gradle Wrapper를 사용하면 팀원이 Gradle을 별도로 설치하지 않아도 된다.
-
-JUnit 5와 JaCoCo도 Gradle dependency/plugin 설정을 통해 내려받아 사용하도록 구성한다. macOS에서는 `./gradlew`의 실행 권한도 확인한다.
-
-## 3. 기본 명령
-
-`build`는 미사용 import 검사(`verifyImports`)도 실행한다. 게임 화면 성능은
-`./gradlew gameplayPerformanceTest`로 따로 측정하며, 실제 창은 잠금이 해제된 GUI 환경에서
-`./gradlew reviewWindowTest`로 검사한다. 최신 로컬 결과와 실행 범위는
-[코드 정리·검증 기록](work-items/source-hygiene.md)에서 확인한다.
-
-### Windows Build + Test
-
-```powershell
-.\gradlew.bat clean build
-```
-
-### 실행
-
-```powershell
-.\gradlew.bat run
-```
-
-### Coverage Report
-
-```powershell
-.\gradlew.bat test jacocoTestReport
-```
-
-### macOS Build / Run / Coverage
+## 명령
 
 ```bash
-./gradlew clean build
 ./gradlew run
-./gradlew test jacocoTestReport
+./gradlew --no-daemon clean build jacocoTestReport
+./gradlew reviewWindowTest
+./gradlew gameplayPerformanceTest
+./gradlew packageMacos
 ```
 
-위 명령은 개발자용이며, 최종 사용자에게는 별도 명령 없이 실행되는 배포 패키지를 제공한다.
+Windows에서는 `./gradlew` 대신 `.\gradlew.bat`을 사용한다. Windows 패키지는 `.\gradlew.bat packageWindows`로 생성한다.
 
-## 4. build.gradle 기본 구성 예시
+`build`는 단위 검사, 화면 없는 통합 검사, 미사용 import, 전체 줄 50%, 핵심 클래스별 70% 기준을 실행한다. 실제 창 검사는 GUI 환경에서, 성능 검사는 256MiB 힙으로 별도 실행한다. 머신별 시간이 달라지는 성능 검사는 일반 CI에 강제하지 않는다.
 
-```groovy
-plugins {
-    id 'java'
-    id 'application'
-    id 'jacoco'
-}
+| 보고서 | 위치 |
+|---|---|
+| 단위 | `build/reports/tests/test/index.html` |
+| 통합 | `build/reports/tests/reviewIntegrationTest/index.html` |
+| 실제 창 | `build/reports/tests/reviewWindowTest/index.html` |
+| 성능 | `build/reports/tests/gameplayPerformanceTest/index.html` |
+| 커버리지 | `build/reports/jacoco/test/html/index.html` |
+| 성능 측정값 | `build/reports/gameplay-performance/` |
 
-java {
-    toolchain {
-        languageVersion = JavaLanguageVersion.of(21)
-    }
-}
+## 협업 흐름
 
-repositories {
-    mavenCentral()
-}
+기능별 브랜치에서 구현·명세·검사를 함께 변경한다. PR에는 해결하는 문제, 동작 규칙과 검증 결과를 기록한다. 최신 main과의 충돌을 정리하고 세 OS CI를 확인한 뒤 통합한다. 게임 코드 변경은 Windows·macOS 패키지 생성도 확인한다.
 
-dependencies {
-    testImplementation platform(
-        'org.junit:junit-bom:5.11.0'
-    )
+CI는 push와 pull_request에 각각 실행된다. 같은 커밋에 두 이벤트가 연결되면 검사 수가 늘어나고, main 병합 커밋에는 push 검사만 연결된다. CI 개수보다 해당 커밋의 검사 이름·결과·패키지 성공을 확인한다.
 
-    testImplementation(
-        'org.junit.jupiter:junit-jupiter'
-    )
-}
+담당 이력은 [작업 현황](req2-team-plan.md), 현재 결과는 [검증 문서](verification.md)에 정리한다. `build/`, 로컬 IDE 설정, 사용자 점수 파일은 커밋하지 않는다.
 
-application {
-    mainClass = 'tetris.Main'
-}
+## 아이템 설명 이미지 재생성
 
-test {
-    useJUnitPlatform()
-}
+`docs/tools/GenerateItemGallery.java`는 실제 Tetromino와 PieceStyle을 사용한다. 빌드한 main 클래스에 연결해 PNG 두 개를 만든다.
+
+```bash
+./gradlew classes
+mkdir -p build/docs-tools
+javac -encoding UTF-8 -cp build/classes/java/main -d build/docs-tools docs/tools/GenerateItemGallery.java
+java -Djava.awt.headless=true -cp build/docs-tools:build/classes/java/main tetris.ui.GenerateItemGallery docs/images
 ```
 
-실제 dependency 버전과 packaging 설정은 구현 시 확정한다. `jacocoTestReport` 생성과 `jacocoTestCoverageVerification`의 기준값을 설정하고, `check`에 검증 작업을 연결하여 CI에서 기준 미달을 감지하도록 구성한다.
-
-## 5. Git Branch 전략 제안
-
-사람 이름보다 기능 단위 Branch를 사용한다.
-
-```text
-main
-develop
-
-feature/board
-feature/collision
-feature/rotation
-feature/game-engine
-feature/scoring
-feature/start-menu
-feature/settings-ui
-feature/scoreboard
-feature/settings-storage
-```
-
-Issue와 연결하는 경우:
-
-```text
-feature/12-collision
-feature/17-scoreboard
-```
-
-`develop` Branch 사용 여부는 팀 합의 후 결정한다.
-팀 규모가 작고 관리 복잡도가 커진다면 `main + feature branch` 방식으로 단순화할 수도 있다.
-
-## 6. Pull Request 흐름 제안
-
-`develop`을 사용하는 경우:
-
-```text
-feature branch
-      ↓
-Pull Request
-      ↓
-다른 팀원 Review
-      ↓
-develop
-      ↓
-전체 Build / Test
-      ↓
-main
-```
-
-`develop`을 사용하지 않는 경우:
-
-```text
-feature branch
-      ↓
-Pull Request
-      ↓
-다른 팀원 Review
-      ↓
-Build / Test
-      ↓
-main
-```
-
-PR 병합 전에는 관련 Issue 연결, 완료 기준 충족, 관련 테스트·CI 통과, 동료 리뷰 및 필요 문서 갱신을 확인한다.
-
-## 7. Issue 사용
-
-Issue는 다음과 같은 내용을 기록하는 데 사용한다.
-
-- 구현해야 할 기능
-- 버그
-- 요구사항에서 모호한 부분
-- 팀에서 결정해야 하는 사항
-- 문제 발생 및 해결 과정
-- 요구사항 ID, 담당자, 검증 가능한 완료 기준(Acceptance Criteria)
-
-예:
-
-```text
-Issue: 낙하 속도 증가 기준 결정
-
-문제:
-PDF에는 일정 수 이상의 블럭 생성 또는 줄 삭제 후
-속도를 증가시키라고 되어 있으나 구체적인 수치는 없음.
-
-논의:
-- 블럭 몇 개를 기준으로 할지
-- 몇 줄 삭제를 기준으로 할지
-- 최소 낙하 간격을 둘지
-
-결정:
-팀 논의 후 기록
-```
-
-PR 설명에서 관련 Issue를 연결할 수 있다.
-
-```text
-Closes #12
-```
-
-## 8. 문서 관리
-
-`docs/` 아래에서 프로젝트 관련 문서를 관리한다.
-
-```text
-docs/
-├── requirements.md
-├── architecture.md
-├── development.md
-└── decisions/
-```
-
-- `requirements.md`: PDF 요구사항 정리 및 팀 결정 필요 사항
-- `architecture.md`: 프로젝트 구조 및 설계 제안
-- `development.md`: 개발환경, Git, Build/Test/CI 방식
-- `decisions/`: 중요한 설계 결정이 별도 문서가 필요할 경우 사용
-
-문서 수정도 가능하면 Branch → Commit → PR → Review 흐름을 사용한다. 요구사항 변경 시 관련 Issue·테스트를 함께 갱신하고, 중요한 설계 결정만 이유·대안과 함께 `decisions/`에 기록한다.
-
-## 9. GitHub Actions 제안
-
-Push 또는 PR 시 자동으로 다음을 수행하도록 구성한다.
-
-```text
-Checkout
-↓
-Java 21 설치
-↓
-Gradle Wrapper
-↓
-Build
-↓
-JUnit Test
-↓
-JaCoCo Coverage
-```
-
-예:
-
-```yaml
-- name: Build
-  run: ./gradlew clean build
-```
-
-Coverage Report 생성 여부는 workflow와 `build.gradle`에서 명시적으로 설정한다.
-
-- CI는 Windows 및 macOS 러너에서 Java 21 빌드·테스트를 수행하도록 제안한다. OS별 실행파일 패키징은 해당 OS 러너에서 별도 수행한다.
-- CI 성공만으로 Windows 11/macOS 26 실기기 실행 또는 과제 최소 사양 충족을 입증했다고 보지 않고 별도로 검증한다.
-- 위 예시 워크플로는 제안이며 실제 워크플로 파일을 생성하고 실행 결과를 확인해야 한다.
-
-## 10. Windows 및 macOS 배포 제안
-
-```text
-Gradle
-↓
-JAR
-↓
-jpackage
-↓
-Windows 실행파일
-```
-
-목표:
-
-- 아이콘이 포함된 실행파일 제공
-- 사용자가 명령 프롬프트에서 Java 명령을 입력하지 않고 실행
-- 더블클릭 등 일반적인 Windows 동작으로 실행 가능
-
-실행파일 이름은 팀에서 결정한다.
-
-macOS에서는 같은 Java 빌드 결과를 기반으로 macOS 환경에서 `jpackage`를 실행해 아이콘(`.icns`)이 포함된 `.app`을 생성하고 더블클릭 실행을 확인한다. 필요하면 `.dmg` 배포도 검토한다. Windows용 패키지는 Windows에서, macOS용 패키지는 macOS에서 각각 빌드한다.
-
-최초 실행 시 macOS 보안 정책(서명·공증 여부)에 따른 동작과 데이터 저장·재실행을 확인하며, 과제 제출용 배포 범위는 팀에서 결정한다.
-
-## 11. 팀 작업 원칙 제안
-
-- 각자 담당 기능의 구현과 테스트를 함께 작성한다.
-- 다른 담당자의 주요 영역을 수정해야 하면 먼저 공유한다.
-- 큰 설계 변경이나 요구사항 해석 문제는 Issue 또는 PR에서 논의한다.
-- 사소한 변경까지 모든 것을 Issue로 만들 필요는 없다.
-- 중요한 결정과 해결 과정은 나중에 제시할 수 있도록 기록을 남긴다.
-- 짧은 반복 주기마다 우선순위가 높은 작은 기능을 구현·테스트·통합하고 실행 가능한 결과물을 남긴다.
-- 각 반복 주기에서 진행 상황·막힌 점을 공유하고, 완료 후 개선점을 다음 작업에 반영한다.
-- 완료 정의(Definition of Done): 완료 기준 충족, 관련 테스트·CI 통과, 리뷰·통합 완료, 필요한 문서 갱신.
-- 2·3차 요구사항이 공개되면 기존 기능 영향과 회귀 테스트를 검토한 뒤 Issue로 작업을 분리한다.
-
-## 12. 현재 팀 논의가 필요한 항목
-
-- 실제 역할 분담
-- `develop` Branch 사용 여부
-- 낙하 속도 증가 규칙
-- 추가 점수 규칙
-- Level 개념 도입 여부
-- 색맹 모드의 구체적인 디자인
-- 저장 파일 형식
-- 패키지 구조 및 클래스 분리 수준
-- 텍스트 기반 UI에서 Swing 허용 범위 및 표현 방식
-- macOS CPU 아키텍처, OS별 저장 경로, 실행파일 검증 범위
-- 반복 개발 주기·Issue 우선순위·완료 정의의 운영 방식
-
-## 13. 보드와 블록 구현의 작성 기준
-
-- I, O, T, S, Z, J, L은 블록 모양의 이름으로 유지한다. 기존 공개 메서드 이름은 연결 규칙 없이 바꾸지 않는다.
-- 무작위 선택 테스트는 선택기를 전달해 재현한다. 실제 선택 빈도의 우연한 차이에 의존하지 않는다.
-- 테스트를 위해 보드를 임의 변경하는 공개 메서드를 만들지 않고 실제 블록 고정 기능으로 준비한다.
-- 새 기능의 요구사항, 결정 사항, 테스트, 결과와 후속 작업은 `docs/work-items/`에 기록한다.
-- 외부 이슈 등록과 다른 팀원의 검토 여부는 로컬 구현·테스트 완료와 구분해서 기록한다.
-
-이번 보드·블록 네 클래스는 각각 실행 코드 줄의 70% 이상을 테스트하도록
-`boardAndPieceCoverageVerification` 작업을 `check`에 연결했다. 따라서 기존 자동 빌드에서도
-해당 기준을 검사한다. 다른 미구현 클래스를 포함한 전체 프로젝트 목표는 별도로 합의한다.
-
-자세한 호출 규칙은 [보드와 블록의 연결 규칙](contracts/board-and-piece.md)을 참고한다.
-
-## 14. 게임 엔진 확장과 검증
-
-- 상태 변경은 엔진에 모으고, 화면과 점수 계산에 필요한 조회값은 사본으로 전달한다.
-- 시작 위치 규칙과 새 블록 목록 공급 방식을 객체로 전달하여 확장한다.
-- 공개 변수의 직접 변경 대신 의미가 있는 행동과 점수·레벨 반영 메서드를 사용한다.
-- 데이터 메서드 변경 시 계약 문서와 해당 테스트를 함께 수정하고 연결 담당자에게 공유한다.
-- 직접 확인용 임시 화면을 제거해도 보드·블록·엔진의 유닛 테스트는 계속 유지한다.
-- 게임 엔진과 상태·처리 결과도 클래스마다 코드 줄 커버리지 70% 이상을 자동 빌드에서 검사한다.
-- 현재 연결 규칙은 [게임 엔진과 앱 제어](contracts/game-engine.md)에 기록한다.
+위 이미지 명령의 클래스 경로 구분자는 macOS/Linux의 `:` 기준이다. Windows에서는 `;`로 바꾼다. 앱 스크린샷은 실제 배포 앱을 실행해 촬영하며 설명용 기록과 검증 환경을 함께 적는다.
