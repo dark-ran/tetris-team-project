@@ -5,7 +5,9 @@ import java.awt.Graphics;
 import java.awt.Graphics2D;
 import java.awt.Rectangle;
 import java.awt.RenderingHints;
+import java.awt.event.HierarchyEvent;
 import javax.swing.JPanel;
+import javax.swing.Timer;
 import tetris.board.Board;
 import tetris.game.GameState;
 import tetris.piece.Tetromino;
@@ -17,8 +19,9 @@ import tetris.settings.ColorVisionMode;
 final class BoardPreview extends JPanel {
     private GameState state;
     private boolean flashing;
-    private int[][] flashBoard;
+    private Board flashBoard;
     private boolean[] flashingRows;
+    private final Timer flashTimer = new Timer(350, event -> clearFlash());
     private ColorVisionMode mode = ColorVisionMode.NORMAL;
     private boolean patterns;
 
@@ -34,6 +37,10 @@ final class BoardPreview extends JPanel {
     private static final int BORDER_SIZE = 3;
 
     BoardPreview() {
+        flashTimer.setRepeats(false);
+        addHierarchyListener(event -> {
+            if ((event.getChangeFlags() & HierarchyEvent.SHOWING_CHANGED) != 0 && !isShowing()) clearFlash();
+        });
         setOpaque(false);
         setFocusable(true);
         setPreferredSize(new Dimension(
@@ -46,26 +53,35 @@ final class BoardPreview extends JPanel {
     }
 
     void render(GameState newState) {
+        java.util.Objects.requireNonNull(newState);
+        boolean newGame = state != null && (newState.totalClearedRows() < state.totalClearedRows()
+                || newState.spawnedPieces() < state.spawnedPieces()
+                || newState.mode() != state.mode() || newState.difficulty() != state.difficulty());
+        if (newGame) clearFlash();
         // 줄 삭제가 발생한 경우 삭제 직전의 보드를 만들어 반짝임을 표시한다.
-        if (state != null
+        if (!newGame && state != null
                 && newState.totalClearedRows() > state.totalClearedRows()) {
-
+            clearFlash();
             prepareLineClearFlash(state);
-            flashing = true;
-
-            javax.swing.Timer timer = new javax.swing.Timer(350, e -> {
-                flashing = false;
-                flashBoard = null;
-                flashingRows = null;
-                repaint();
-            });
-
-            timer.setRepeats(false);
-            timer.start();
+            flashing = flashBoard != null;
+            if (flashing) flashTimer.restart();
         }
 
         this.state = newState;
         repaint();
+    }
+
+    private void clearFlash() {
+        flashTimer.stop();
+        flashing = false;
+        flashBoard = null;
+        flashingRows = null;
+        repaint();
+    }
+
+    @Override public void removeNotify() {
+        clearFlash();
+        super.removeNotify();
     }
 
     private void prepareLineClearFlash(GameState oldState) {
@@ -99,7 +115,7 @@ final class BoardPreview extends JPanel {
                 landingRow,
                 column);
 
-        flashBoard = beforeClearBoard.snapshot();
+        flashBoard = beforeClearBoard;
         flashingRows = new boolean[Board.ROWS];
 
         for (int row : rowsToClear) {
@@ -137,10 +153,11 @@ final class BoardPreview extends JPanel {
 
     private void paintFlashBoard(Graphics2D g, BoardGeometry board) {
         int cellSize = board.cellSize();
+        int[][] cells = flashBoard.snapshot();
 
         for (int row = 0; row < Board.ROWS; row++) {
             for (int column = 0; column < Board.COLUMNS; column++) {
-                int value = flashBoard[row][column];
+                int value = cells[row][column];
 
                 if (value == Board.EMPTY_CELL) {
                     continue;
@@ -174,6 +191,8 @@ final class BoardPreview extends JPanel {
                             mode,
                             patterns);
                 }
+                PieceStyle.paintItem(g, flashBoard.itemAt(row, column),
+                        x + 2, y + 2, cellSize - 4);
             }
         }
     }
