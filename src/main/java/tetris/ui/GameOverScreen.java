@@ -8,9 +8,11 @@ import java.awt.Font;
 import java.awt.GridBagLayout;
 import java.awt.event.ActionEvent;
 import java.awt.event.KeyEvent;
+import java.util.List;
 import java.util.Objects;
 import java.util.function.BooleanSupplier;
 import java.util.function.Consumer;
+import java.util.function.LongSupplier;
 import java.util.function.Supplier;
 import javax.swing.AbstractAction;
 import javax.swing.BorderFactory;
@@ -18,14 +20,20 @@ import javax.swing.JButton;
 import javax.swing.JComponent;
 import javax.swing.JLabel;
 import javax.swing.JPanel;
+import javax.swing.JTable;
 import javax.swing.JTextArea;
 import javax.swing.JTextField;
 import javax.swing.KeyStroke;
+import javax.swing.table.DefaultTableModel;
+import tetris.game.GameMode;
+import tetris.scoreboard.ScoreEntry;
 
 /** 최종 점수·이름 등록·저장 재시도와 재시작·메뉴 이동을 제공한다. */
 public class GameOverScreen extends JPanel {
     static { AppTheme.install(); }
     private static final String SCORE_UNMEASURED = "최종 점수: 미측정 (게임 연결 전)";
+    /** 즉시 낙하(Space)를 누르던 중 게임이 끝나도 결과를 보기 전에 재시작되지 않도록 기다리는 시간. */
+    static final long SPACE_RESTART_DELAY_NANOS = 500_000_000L;
 
     private final JLabel scoreLabel = new JLabel();
     private final JButton restartButton;
@@ -36,6 +44,16 @@ public class GameOverScreen extends JPanel {
     private Runnable onSkip;
     private BooleanSupplier onRetry;
     private Supplier<String> saveError = () -> null;
+    private final JPanel ranking = ScreenSupport.transparentPanel(new BorderLayout(0, 8));
+    private final JLabel rankingTitle = new JLabel(" ", JLabel.CENTER);
+    private final DefaultTableModel rankingRows = new DefaultTableModel(new String[] {"순위", "이름", "점수", "난이도"}, 0) {
+        @Override
+        public boolean isCellEditable(int row, int column) {
+            return false;
+        }
+    };
+    private LongSupplier clock = System::nanoTime;
+    private long shownAtNanos;
 
     public GameOverScreen(Runnable onRestart, Runnable onScoreboard, Runnable onBack, Runnable onExit) {
         ScreenSupport.prepareScreen(this, "게임 종료",
@@ -69,7 +87,10 @@ public class GameOverScreen extends JPanel {
         scoreLabel.setFont(AppTheme.font(Font.BOLD, 24f));
         scoreLabel.setHorizontalAlignment(JLabel.CENTER);
         result.add(scoreLabel, BorderLayout.NORTH);
-        result.add(createRegistrationForm(), BorderLayout.CENTER);
+        JPanel body = ScreenSupport.transparentPanel(new BorderLayout(0, 12));
+        body.add(createRegistrationForm(), BorderLayout.NORTH);
+        body.add(createRanking(), BorderLayout.CENTER);
+        result.add(body, BorderLayout.CENTER);
         JLabel guide = ScreenSupport.mutedLabel("Space  다시 시작     ·     Esc  시작 메뉴");
         guide.setHorizontalAlignment(JLabel.CENTER);
         result.add(guide, BorderLayout.SOUTH);
@@ -89,6 +110,25 @@ public class GameOverScreen extends JPanel {
         registration.add(feedback, BorderLayout.SOUTH);
         registration.setVisible(false);
         return registration;
+    }
+
+    /** 기록 등록 대상이 아닐 때도 게임 종료 화면에서 현재 모드의 스코어보드를 보여 준다. */
+    private JPanel createRanking() {
+        rankingTitle.setFont(AppTheme.font(Font.BOLD, 15f));
+        ranking.add(rankingTitle, BorderLayout.NORTH);
+        JTable table = new JTable(rankingRows);
+        table.setRowHeight(22);
+        table.setFocusable(false);
+        table.setRowSelectionAllowed(false);
+        table.getTableHeader().setReorderingAllowed(false);
+        // 상위 10개만 표시하므로 스크롤 없이 머리글과 표를 함께 놓는다.
+        JPanel tablePanel = ScreenSupport.transparentPanel(new BorderLayout());
+        tablePanel.add(table.getTableHeader(), BorderLayout.NORTH);
+        tablePanel.add(table, BorderLayout.CENTER);
+        tablePanel.setPreferredSize(new Dimension(440, table.getRowHeight() * 10 + 26));
+        ranking.add(tablePanel, BorderLayout.CENTER);
+        ranking.setVisible(false);
+        return ranking;
     }
 
     private void configureRegistrationFeedback(JLabel guide) {
@@ -135,14 +175,22 @@ public class GameOverScreen extends JPanel {
     }
 
     private void configureShortcuts(Runnable onRestart, Runnable onBack) {
+        Runnable restartBySpace = () -> restartBySpace(onRestart);
         SwingKeyBindings.backOnEscape(this, onBack);
-        SwingKeyBindings.bindToScreen(this, KeyEvent.VK_SPACE, "restart-game", onRestart);
+        SwingKeyBindings.bindToScreen(this, KeyEvent.VK_SPACE, "restart-game", restartBySpace);
         // Consume the pressed event; the typed Space still goes to the name editor.
         nameField.getInputMap(JComponent.WHEN_FOCUSED).put(KeyStroke.getKeyStroke(KeyEvent.VK_SPACE, 0), "name-space");
         nameField.getActionMap().put("name-space", new AbstractAction() {
             @Override public void actionPerformed(ActionEvent event) { }
         });
-        bindSpaceToButtons(this, onRestart);
+        bindSpaceToButtons(this, restartBySpace);
+    }
+
+    /** 등록할 기록이 남아 있거나 화면이 막 열린 직후에는 Space로 재시작하지 않는다. */
+    private void restartBySpace(Runnable onRestart) {
+        if (registration.isVisible()) return;
+        if (clock.getAsLong() - shownAtNanos < SPACE_RESTART_DELAY_NANOS) return;
+        onRestart.run();
     }
 
     private static void bindSpaceToButtons(Component component, Runnable restart) {
@@ -173,11 +221,31 @@ public class GameOverScreen extends JPanel {
     public void showScreen(long score) { showScreen(score, false); }
     public void showScreen(long score, boolean canRegister) { showResult("최종 점수: " + score, canRegister); }
 
+    /** 기록 등록 대상이 아니면 해당 모드의 상위 기록을 함께 표시한다. */
+    public void showScreen(long score, boolean canRegister, GameMode mode, List<ScoreEntry> top) {
+        Objects.requireNonNull(mode);
+        Objects.requireNonNull(top);
+        rankingRows.setRowCount(0);
+        for (int index = 0; index < top.size(); index++) {
+            ScoreEntry entry = top.get(index);
+            rankingRows.addRow(new Object[] {index + 1, entry.name(), entry.score(), entry.difficulty().name()});
+        }
+        rankingTitle.setText((mode == GameMode.ITEM ? "아이템 모드" : "일반 모드") + " 스코어보드"
+                + (top.isEmpty() ? " (기록 없음)" : ""));
+        showResult("최종 점수: " + score, canRegister);
+        ranking.setVisible(!canRegister);
+    }
+
+    void setClock(LongSupplier clock) { this.clock = Objects.requireNonNull(clock); }
+
     private void showResult(String score, boolean canRegister) {
         scoreLabel.setText(score);
         registration.setVisible(canRegister);
+        ranking.setVisible(false);
         nameField.setText(""); showSaveError(saveError.get());
         revalidate(); repaint();
-        SwingKeyBindings.focus(restartButton);
+        shownAtNanos = clock.getAsLong();
+        // 등록 대상이면 이름 입력부터 받아 Space 입력이 기록을 버리고 재시작하지 않게 한다.
+        SwingKeyBindings.focus(canRegister ? nameField : restartButton);
     }
 }
