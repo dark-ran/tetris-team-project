@@ -1,14 +1,17 @@
 package tetris.scoreboard;
 
 import java.util.Objects;
+import tetris.game.Difficulty;
 import tetris.game.GameMode;
 
 /** 불변 기록. 이름은 공백을 제거한 1~20개 Unicode 코드 포인트. */
-public record ScoreEntry(String name, long score, GameMode mode) {
+public record ScoreEntry(String name, long score, GameMode mode, Difficulty difficulty) {
     public ScoreEntry(String name, long score) { this(name, score, GameMode.NORMAL); }
+    public ScoreEntry(String name, long score, GameMode mode) { this(name, score, mode, Difficulty.NORMAL); }
 
     public ScoreEntry {
         Objects.requireNonNull(mode, "mode");
+        Objects.requireNonNull(difficulty, "difficulty");
         name = Objects.requireNonNull(name, "name").strip();
         // emoji처럼 UTF-16 두 칸으로 표현되는 문자도 한 글자로 세고, 파일 구분용 제어 문자는 금지한다.
         if (name.isEmpty() || name.codePointCount(0, name.length()) > 20

@@ -8,10 +8,27 @@ import javax.swing.JComboBox;
 import javax.swing.JTable;
 import javax.swing.SwingUtilities;
 import org.junit.jupiter.api.Test;
+import tetris.game.Difficulty;
 import tetris.game.GameMode;
 import tetris.scoreboard.ScoreEntry;
 
 class ModeScoreboardScreenTest {
+    @Test void difficultyIsVisibleAndMatchingNameAndScoreDoNotHighlightADifferentDifficulty() throws Exception {
+        SwingUtilities.invokeAndWait(() -> {
+            ScoreboardScreen screen = new ScoreboardScreen(() -> {});
+            ScoreEntry easy = new ScoreEntry("player", 100, GameMode.NORMAL, Difficulty.EASY);
+            ScoreEntry hard = new ScoreEntry("player", 100, GameMode.NORMAL, Difficulty.HARD);
+            ScoreEntry normal = new ScoreEntry("player", 100);
+            screen.showScreen(List.of(easy, hard, normal), hard);
+            JTable table = find(screen, JTable.class);
+            assertEquals("난이도", table.getColumnName(3));
+            assertEquals("EASY", table.getValueAt(0, 3));
+            assertEquals("HARD", table.getValueAt(1, 3));
+            assertEquals("NORMAL", table.getValueAt(2, 3));
+            assertEquals(1, table.getSelectedRow());
+        });
+    }
+
     @Test void selectorAndHighlightedRecordShowOnlyTheSelectedMode() throws Exception {
         SwingUtilities.invokeAndWait(() -> {
             ScoreboardScreen screen = new ScoreboardScreen(() -> {});

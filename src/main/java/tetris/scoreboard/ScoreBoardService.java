@@ -5,6 +5,7 @@ import java.util.Comparator;
 import java.util.List;
 import java.util.Objects;
 import java.util.Arrays;
+import tetris.game.Difficulty;
 import tetris.game.GameMode;
 
 /** 상위 10개 유지. 동점은 먼저 등록된 기록을 우선한다. */
@@ -30,7 +31,10 @@ public class ScoreBoardService {
         register(name, score, GameMode.NORMAL);
     }
     public void register(String name, long score, GameMode mode) {
-        ScoreEntry entry = new ScoreEntry(name, score, mode);
+        register(name, score, mode, Difficulty.NORMAL);
+    }
+    public void register(String name, long score, GameMode mode, Difficulty difficulty) {
+        ScoreEntry entry = new ScoreEntry(name, score, mode, difficulty);
         if (!qualifies(score, mode)) return;
         List<ScoreEntry> next = new ArrayList<>(entries);
         next.add(entry);
