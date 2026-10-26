@@ -12,7 +12,6 @@ import java.util.List;
 import java.util.Objects;
 import java.util.function.BooleanSupplier;
 import java.util.function.Consumer;
-import java.util.function.LongSupplier;
 import java.util.function.Supplier;
 import javax.swing.AbstractAction;
 import javax.swing.BorderFactory;
@@ -32,8 +31,6 @@ import tetris.scoreboard.ScoreEntry;
 public class GameOverScreen extends JPanel {
     static { AppTheme.install(); }
     private static final String SCORE_UNMEASURED = "최종 점수: 미측정 (게임 연결 전)";
-    /** 즉시 낙하(Space)를 누르던 중 게임이 끝나도 결과를 보기 전에 재시작되지 않도록 기다리는 시간. */
-    static final long SPACE_RESTART_DELAY_NANOS = 500_000_000L;
 
     private final JLabel scoreLabel = new JLabel();
     private final JButton restartButton;
@@ -52,8 +49,6 @@ public class GameOverScreen extends JPanel {
             return false;
         }
     };
-    private LongSupplier clock = System::nanoTime;
-    private long shownAtNanos;
 
     public GameOverScreen(Runnable onRestart, Runnable onScoreboard, Runnable onBack, Runnable onExit) {
         ScreenSupport.prepareScreen(this, "게임 종료",
@@ -175,22 +170,14 @@ public class GameOverScreen extends JPanel {
     }
 
     private void configureShortcuts(Runnable onRestart, Runnable onBack) {
-        Runnable restartBySpace = () -> restartBySpace(onRestart);
         SwingKeyBindings.backOnEscape(this, onBack);
-        SwingKeyBindings.bindToScreen(this, KeyEvent.VK_SPACE, "restart-game", restartBySpace);
+        SwingKeyBindings.bindToScreen(this, KeyEvent.VK_SPACE, "restart-game", onRestart);
         // Consume the pressed event; the typed Space still goes to the name editor.
         nameField.getInputMap(JComponent.WHEN_FOCUSED).put(KeyStroke.getKeyStroke(KeyEvent.VK_SPACE, 0), "name-space");
         nameField.getActionMap().put("name-space", new AbstractAction() {
             @Override public void actionPerformed(ActionEvent event) { }
         });
-        bindSpaceToButtons(this, restartBySpace);
-    }
-
-    /** 등록할 기록이 남아 있거나 화면이 막 열린 직후에는 Space로 재시작하지 않는다. */
-    private void restartBySpace(Runnable onRestart) {
-        if (registration.isVisible()) return;
-        if (clock.getAsLong() - shownAtNanos < SPACE_RESTART_DELAY_NANOS) return;
-        onRestart.run();
+        bindSpaceToButtons(this, onRestart);
     }
 
     private static void bindSpaceToButtons(Component component, Runnable restart) {
@@ -236,15 +223,12 @@ public class GameOverScreen extends JPanel {
         ranking.setVisible(!canRegister);
     }
 
-    void setClock(LongSupplier clock) { this.clock = Objects.requireNonNull(clock); }
-
     private void showResult(String score, boolean canRegister) {
         scoreLabel.setText(score);
         registration.setVisible(canRegister);
         ranking.setVisible(false);
         nameField.setText(""); showSaveError(saveError.get());
         revalidate(); repaint();
-        shownAtNanos = clock.getAsLong();
         // 등록 대상이면 이름 입력부터 받아 Space 입력이 기록을 버리고 재시작하지 않게 한다.
         SwingKeyBindings.focus(canRegister ? nameField : restartButton);
     }

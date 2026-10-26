@@ -64,16 +64,7 @@ class GameMenuUiTest {
         SwingUtilities.invokeAndWait(() -> {
             AtomicInteger restarts = new AtomicInteger();
             GameOverScreen screen = new GameOverScreen(restarts::incrementAndGet, () -> {}, () -> {}, () -> {});
-            java.util.concurrent.atomic.AtomicLong now = new java.util.concurrent.atomic.AtomicLong();
-            screen.setClock(now::get);
             screen.showScreen(42, true);
-            now.addAndGet(GameOverScreen.SPACE_RESTART_DELAY_NANOS);
-            key(screen, KeyEvent.VK_SPACE);
-            assertEquals(0, restarts.get(), "등록할 기록이 남아 있으면 Space로 기록을 버리고 재시작하지 않아야 한다");
-            screen.showScreen(42, false);
-            key(screen, KeyEvent.VK_SPACE);
-            assertEquals(0, restarts.get(), "즉시 낙하 Space가 이어져도 결과 화면이 바로 사라지지 않아야 한다");
-            now.addAndGet(GameOverScreen.SPACE_RESTART_DELAY_NANOS);
             key(screen, KeyEvent.VK_SPACE);
             assertEquals(1, restarts.get());
             JButton back = tree(screen).filter(JButton.class::isInstance).map(JButton.class::cast)

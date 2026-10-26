@@ -86,11 +86,7 @@ class MenuSettingsRestartTest {
                 assertTrue(app.snapshot().awaitingScoreName());
                 assertTrue(visible(app.view()).filter(JLabel.class::isInstance).map(JLabel.class::cast)
                         .anyMatch(label -> label.getText().contains("Space") && label.getText().contains("다시 시작")));
-                // 즉시 낙하 Space가 이어져도 등록할 기록을 버리고 재시작하지 않는다.
                 key(active(app), KeyEvent.VK_SPACE);
-                assertEquals(AppState.GAME_OVER, app.state());
-                assertTrue(app.snapshot().awaitingScoreName());
-                click(app, "다시 시작");
                 assertEquals(AppState.GAME, app.state());
                 assertEquals(0, app.snapshot().game().score());
                 assertEquals(1, app.snapshot().game().level());
