@@ -69,45 +69,43 @@ final class BoardPreview extends JPanel {
     }
 
     private void prepareLineClearFlash(GameState oldState) {
-        flashBoard = oldState.board().snapshot();
-        flashingRows = new boolean[Board.ROWS];
-
         Tetromino piece = oldState.currentPiece();
 
         if (piece == null) {
             return;
         }
 
-        int landingRow = oldState.currentRow();
+        Board beforeClearBoard = oldState.board().copy();
 
-        while (oldState.board().canPlace(
+        int landingRow = oldState.landingRow();
+        int column = oldState.currentColumn();
+
+        PieceRules rules = PieceRules.forPiece(piece);
+
+        // 실제 게임 엔진과 같은 방식으로 삭제 직전 상태를 만든다.
+        if (rules.leavesPieceOnBoard()) {
+            beforeClearBoard.lock(piece, landingRow, column);
+        }
+
+        rules.lockEffect().onLock(
+                beforeClearBoard,
                 piece,
-                landingRow + 1,
-                oldState.currentColumn())) {
-            landingRow++;
-        }
+                landingRow,
+                column);
 
-        for (int[] cell : piece.cells()) {
-            int row = landingRow + cell[0];
-            int column = oldState.currentColumn() + cell[1];
+        java.util.Set<Integer> rowsToClear = rules.lockEffect().rowsToClear(
+                beforeClearBoard,
+                piece,
+                landingRow,
+                column);
 
-            if (row >= 0 && row < Board.ROWS
-                    && column >= 0 && column < Board.COLUMNS) {
-                flashBoard[row][column] = piece.type().cellValue();
+        flashBoard = beforeClearBoard.snapshot();
+        flashingRows = new boolean[Board.ROWS];
+
+        for (int row : rowsToClear) {
+            if (row >= 0 && row < Board.ROWS) {
+                flashingRows[row] = true;
             }
-        }
-
-        for (int row = 0; row < Board.ROWS; row++) {
-            boolean full = true;
-
-            for (int column = 0; column < Board.COLUMNS; column++) {
-                if (flashBoard[row][column] == Board.EMPTY_CELL) {
-                    full = false;
-                    break;
-                }
-            }
-
-            flashingRows[row] = full;
         }
     }
 
@@ -125,47 +123,58 @@ final class BoardPreview extends JPanel {
             BoardGeometry board = geometry();
             paintBoardFrame(g, board);
             paintEmptyCells(g, board);
-            if (state != null) {
-                paintGameState(g, board, state, mode, patterns);
-            }
+
             // 삭제되는 줄만 잠깐 밝게 표시한다.
             if (flashing && flashBoard != null && flashingRows != null) {
-                int cellSize = board.cellSize();
-
-                for (int row = 0; row < Board.ROWS; row++) {
-                    if (!flashingRows[row]) {
-                        continue;
-                    }
-
-                    for (int column = 0; column < Board.COLUMNS; column++) {
-                        int value = flashBoard[row][column];
-
-                        if (value == Board.EMPTY_CELL) {
-                            continue;
-                        }
-
-                        PieceType type = PieceType.fromCellValue(value);
-                        java.awt.Color base = PieceStyle.colorFor(type, mode);
-
-                        java.awt.Color highlight = new java.awt.Color(
-                                Math.min(255, base.getRed() + 70),
-                                Math.min(255, base.getGreen() + 70),
-                                Math.min(255, base.getBlue() + 70));
-
-                        int x = board.x() + column * cellSize;
-                        int y = board.y() + row * cellSize;
-
-                        g.setColor(highlight);
-                        g.fillRect(
-                                x + 2,
-                                y + 2,
-                                cellSize - 4,
-                                cellSize - 4);
-                    }
-                }
+                paintFlashBoard(g, board);
+            } else if (state != null) {
+                paintGameState(g, board, state, mode, patterns);
             }
         } finally {
             g.dispose();
+        }
+    }
+
+    private void paintFlashBoard(Graphics2D g, BoardGeometry board) {
+        int cellSize = board.cellSize();
+
+        for (int row = 0; row < Board.ROWS; row++) {
+            for (int column = 0; column < Board.COLUMNS; column++) {
+                int value = flashBoard[row][column];
+
+                if (value == Board.EMPTY_CELL) {
+                    continue;
+                }
+
+                PieceType type = PieceType.fromCellValue(value);
+
+                int x = board.x() + column * cellSize;
+                int y = board.y() + row * cellSize;
+                if (flashingRows[row]) {
+                    java.awt.Color base = PieceStyle.colorFor(type, mode);
+
+                    java.awt.Color highlight = new java.awt.Color(
+                            Math.min(255, base.getRed() + 70),
+                            Math.min(255, base.getGreen() + 70),
+                            Math.min(255, base.getBlue() + 70));
+
+                    g.setColor(highlight);
+                    g.fillRect(
+                            x + 2,
+                            y + 2,
+                            cellSize - 4,
+                            cellSize - 4);
+                } else {
+                    PieceStyle.paintCell(
+                            g,
+                            type,
+                            x + 2,
+                            y + 2,
+                            cellSize - 4,
+                            mode,
+                            patterns);
+                }
+            }
         }
     }
 
@@ -208,7 +217,7 @@ final class BoardPreview extends JPanel {
 
         if (currentPiece != null) {
             int ghostRow = state.landingRow();
-            
+
             if (ghostRow != state.currentRow()) {
                 for (int[] cell : currentPiece.cells()) {
                     int row = ghostRow + cell[0], column = state.currentColumn() + cell[1];
