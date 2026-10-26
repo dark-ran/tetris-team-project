@@ -164,7 +164,7 @@ class GoldenItemConnectionTest {
                 private int pieces;
                 @Override public int nextInt(int bound) {
                     if (bound == 7) return pieces++ % 3 == 2 ? PieceType.O.ordinal() : PieceType.I.ordinal();
-                    if (bound == 4) return 3; // 실제 생성기에서 황금 아이템을 선택한다.
+                    if (bound == 5) return 3; // 실제 생성기에서 황금 아이템을 선택한다.
                     return super.nextInt(bound);
                 }
             });

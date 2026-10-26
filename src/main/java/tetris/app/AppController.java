@@ -1,4 +1,3 @@
-
 package tetris.app;
 
 import java.awt.CardLayout;
@@ -45,7 +44,7 @@ import tetris.ui.WindowSizeConfirmationDialog;
 public class AppController {
     static { AppTheme.install(); }
 
-    /** PR #24의 350ms 반짝임이 종료된 뒤 게임을 재개한다. */
+    /** 줄 삭제 연출이 완료될 때까지 자동 낙하를 지연한다. */
     private static final int LINE_CLEAR_PAUSE_MILLIS = 400;
 
     private final CardLayout layout = new CardLayout();
@@ -337,7 +336,7 @@ public class AppController {
             loop.resume();
         }
 
-        // PR #24가 병합되면 이 렌더 호출에서 반짝임을 시작한다.
+        // 게임 상태를 먼저 렌더링한 뒤 줄 삭제 연출 대기를 시작한다.
         renderer.accept(engine.state());
 
         if (result.becameGameOver()) {
@@ -448,7 +447,7 @@ public class AppController {
 
         if (pendingScore == null) {
             pendingScore = new ScoreEntry(
-                    name, engine.state().score(), engine.state().mode());
+                    name, engine.state().score(), engine.state().mode(), engine.difficulty());
         }
 
         retryScoreSave();
@@ -461,7 +460,7 @@ public class AppController {
 
         try {
             ScoreEntry entry = pendingScore;
-            scores.register(entry.name(), entry.score(), entry.mode());
+            scores.register(entry.name(), entry.score(), entry.mode(), entry.difficulty());
 
             persistenceError = null;
             lastRegisteredScore = entry;

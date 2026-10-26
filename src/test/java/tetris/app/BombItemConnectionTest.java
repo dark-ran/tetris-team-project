@@ -61,7 +61,7 @@ class BombItemConnectionTest {
                 private int pieces;
                 @Override public int nextInt(int bound) {
                     if (bound == 7) return pieces++ % 3 == 2 ? PieceType.O.ordinal() : PieceType.I.ordinal();
-                    if (bound == 4) return 2; // 실사용 생성기의 폭탄 선택 경로.
+                    if (bound == 5) return 2; // 실사용 생성기의 폭탄 선택 경로.
                     return super.nextInt(bound);
                 }
             });

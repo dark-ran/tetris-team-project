@@ -18,9 +18,35 @@ import tetris.game.GameState;
 import tetris.piece.PieceQueue;
 import tetris.piece.PieceType;
 import tetris.piece.Tetromino;
+import tetris.piece.ItemType;
 import tetris.settings.ColorVisionMode;
 
 class SinglePieceRenderingTest {
+    @Test void rewardedSingleKeepsItsIdentifierInEveryAppearanceAndPreview() throws Exception {
+        SwingUtilities.invokeAndWait(() -> {
+            Tetromino single = Tetromino.singleCell();
+            assertEquals(ItemType.SINGLE, single.itemType());
+            for (ColorVisionMode mode : ColorVisionMode.values()) {
+                for (boolean patterns : new boolean[] {false, true}) {
+                    NextPiecePreview next = new NextPiecePreview();
+                    next.setAppearance(mode, patterns);
+                    next.setBlock(single);
+                    next.setSize(next.getPreferredSize());
+                    assertEquals("다음 아이템: 1칸 블록 (1)", next.getAccessibleContext().getAccessibleName());
+                    BufferedImage cell = paint(next).getSubimage(56, 38, 32, 32);
+                    int whiteGlyphPixels = 0;
+                    for (int y = 8; y < 24; y++) for (int x = 8; x < 24; x++) {
+                        if (cell.getRGB(x, y) == Color.WHITE.getRGB()) whiteGlyphPixels++;
+                    }
+                    assertTrue(whiteGlyphPixels > 0, "The item identifier must remain visible inside its dark badge");
+                }
+            }
+            assertArrayEquals(single.cells(), single.rotateClockwise().cells());
+            assertEquals("1", single.itemType().symbol());
+            assertTrue(single.hasItemAt(0, 0));
+        });
+    }
+
     @Test
     void singlePieceRendersAcrossViewsModesAndPatternSettings() throws Exception {
         SwingUtilities.invokeAndWait(() -> {

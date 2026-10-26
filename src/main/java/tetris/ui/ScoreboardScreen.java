@@ -22,7 +22,7 @@ import tetris.game.GameMode;
  * <p>현재 사용 기능: 전달받은 ScoreEntry 목록의 순위·이름·점수 표시와 메뉴 복귀.</p>
  */
 public class ScoreboardScreen extends JPanel {
-    private final DefaultTableModel records = new DefaultTableModel(new String[] {"순위", "이름", "점수"}, 0) {
+    private final DefaultTableModel records = new DefaultTableModel(new String[] {"순위", "이름", "점수", "난이도"}, 0) {
         @Override
         public boolean isCellEditable(int row, int column) {
             return false;
@@ -93,7 +93,7 @@ public class ScoreboardScreen extends JPanel {
         showMessage(null);
         for (int index = 0; index < entries.size(); index++) {
             ScoreEntry entry = entries.get(index);
-            records.addRow(new Object[] {index + 1, entry.name(), entry.score()});
+            records.addRow(new Object[] {index + 1, entry.name(), entry.score(), entry.difficulty().name()});
         }
     }
 
@@ -124,7 +124,7 @@ public class ScoreboardScreen extends JPanel {
         int selected = -1;
         for (int i = 0; i < entries.size(); i++) {
             ScoreEntry entry = entries.get(i);
-            if (entry.name().equals(highlighted.name()) && entry.score() == highlighted.score()) selected = i;
+            if (entry.equals(highlighted)) { selected = i; break; }
         }
         if (selected >= 0) {
             table.setRowSelectionInterval(selected, selected);
