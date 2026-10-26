@@ -1,71 +1,99 @@
-# Req2 Verification Report: Distribution, Packaging, and Coverage
+# Req2 검증 보고서: 블록 생성 확률·배포·커버리지
 
-**Date**: 2026-10-26  
-**Commit / Base**: `main` (`04b6a1d`)  
-**Environment**: Windows 11 x64, Temurin JDK 21.0.4, Gradle 8.14.4  
+- 검증일: 2026-10-26
+- 기준: `main`의 `04b6a1d`에서 분기한 PR #26. #24·#25의 변경은 포함하지 않는다.
+- 이번 재검증 환경: macOS arm64, Temurin JDK 21.0.12.1, Gradle 8.14.4
+- 변경 범위: 블록 생성 확률 테스트와 검증 보고서
 
----
+## 1. 블록 생성 확률
 
-## 1. Piece Distribution Verification ($\pm 5\%$) Across Difficulties
+Req2 4쪽의 가중치 예시와 현재 `Difficulty` 설정을 기준으로 계산한다.
+테스트는 실제 게임에서 사용하는 `PieceQueue`로 블록을 생성한다.
 
-### 1.1 Expected Weights & Theoretical Rates
-According to Req2 specifications:
-- **EASY**: I = 12, Others (O, T, S, Z, J, L) = 10 each (Total: 72)
-  - Expected `I` rate: $12 / 72 \approx 16.6667\%$
-  - Expected other rates: $10 / 72 \approx 13.8889\%$
-- **NORMAL**: All 7 pieces = 10 each (Total: 70)
-  - Expected rate for every piece: $10 / 70 \approx 14.2857\%$
-- **HARD**: I = 8, Others = 10 each (Total: 68)
-  - Expected `I` rate: $8 / 68 \approx 11.7647\%$
-  - Expected other rates: $10 / 68 \approx 14.7059\%$
+| 난이도 | I 가중치 | 나머지 6종의 개별 가중치 | 전체 가중치 | I 확률 | 나머지 블록의 개별 확률 |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| EASY | 12 | 10 | 72 | 16.6667% | 13.8889% |
+| NORMAL | 10 | 10 | 70 | 14.2857% | 14.2857% |
+| HARD | 8 | 10 | 68 | 11.7647% | 14.7059% |
 
-### 1.2 Error Calculation Formulas
-1. **Absolute Error (%p)**:
-   $$\text{Absolute Error} = |P_{\text{actual}} - P_{\text{expected}}| = \left|\frac{\text{Actual Count}}{N} - \frac{\text{Weight}}{\text{Total Weight}}\right|$$
-   - For $N = 1,000$, standard binomial error is $\sigma \approx 1.1\%p$. A $3\sigma$ confidence interval (99.7%) is $\approx \pm 3.3\%p$. Therefore, $\pm 5\%$ at 1,000 runs corresponds to **Absolute Error $\le 5\%p$ ($0.05$)**.
-2. **Relative Error (%)**:
-   $$\text{Relative Error} = \frac{|\text{Actual Count} - \text{Expected Count}|}{\text{Expected Count}}$$
-   - At $N = 100,000$, empirical counts converge to within $\le 5\%$ relative error.
+### 오차 기준
 
-### 1.3 Test Results (`DifficultyGenerationTest.java`)
-- **1,000 Runs Execution**:
-  - EASY: I absolute error = $0.63\%p$ ($17.30\%$ vs $16.67\%$). Others: $0.01\%p \sim 1.61\%p$. All $\le 5\%p$ **[PASS]**
-  - NORMAL: All pieces absolute error $\le 3.81\%p \le 5\%p$ **[PASS]**
-  - HARD: I absolute error = $0.64\%p$ ($12.40\%$ vs $11.76\%$). Others: $0.09\%p \sim 1.81\%p$. All $\le 5\%p$ **[PASS]**
-- **100,000 Runs Execution**:
-  - Maximum observed relative error across all pieces and difficulties: **$1.37\%$** (well within $\le 5\%$) **[PASS]**
+Req2 5쪽은 최소 1,000회 반복과 오차 ±5%를 요구하고, 오차가 크면 반복 횟수를 늘리도록 안내한다.
+오차의 계산식은 따로 정하지 않았으므로, 이 PR에서는 **기대 횟수 대비 상대오차 5%**를 최종 판정 기준으로 사용한다.
+반복 횟수는 난이도별 100,000회로 늘린다.
 
----
+- 확률 차이(%p): `abs(실제 횟수 / 반복 횟수 - 설정 확률) × 100`
+- 상대오차(%): `abs(실제 횟수 - 기대 횟수) / 기대 횟수 × 100`
+- 기대 횟수: `반복 횟수 × 설정 확률`
 
-## 2. OS Distribution Packages & Functional Verification
+두 단위는 다르다. 예를 들어 NORMAL의 S 블록은 1,000회 중 181회 나왔다.
+설정 확률 14.2857%와 실제 확률 18.1%의 차이는 **3.8143%p**이지만, 기대 횟수 대비 상대오차는 **26.7%**이다.
+따라서 이 결과를 상대오차 5% 이내라고 표현하지 않는다.
 
-### 2.1 Packaging Deliverables
-- **Windows x64**: Built via `.\gradlew.bat packageWindows`.
-  - Directory: `build/windows/Tetris/Tetris.exe`
-  - Archive: `build/windows/Tetris-windows-x64.zip` (24.6 MB)
-  - SHA-256: `662db1a65fca7979bc28900d380f1cb881f51fcc44a082b805345ca5fa92e315`
-  - Self-contained with bundled Java 21 JRE (`runtime/bin/javaw.exe`).
-- **macOS**: Configured via `packageMacos` producing `Tetris.app` and ZIP archives.
+### 테스트 결과
 
-### 2.2 Feature Verification Checklist
-- **Execution & Controls**: Verified via desktop launch and `MenuSettingsRestartTest`. Arrow keys, Space (Hard drop), and rotation functional.
-- **Key Rebinding**: Left key reassignment (`←` $\rightarrow$ `A`) immediately effective and persisted.
-- **Pause & Resume**: `ESC` enters `GamePhase.PAUSED`. Board, block coordinates, score, and level frozen across delays and resumed cleanly.
-- **Settings & Reversion**: Window presets (Small/Medium/Large), Color vision modes (Deutan/Protan/Tritan + patterns) and key bindings save to disk. Confirmation dialog reverts safely on Cancel/Timeout/Esc/Close (`ReviewWindowSettingsTest`).
-- **Scoreboard Persistence**: Separate records for Normal and Item modes, difficulty tracking, and persistence across app restarts verified (`ScoreBoardTest`).
-- **Real GUI Display**: All 9 real-window GUI tests passed (`reviewWindowTest`).
+난수 시드는 `20261026 + difficulty.ordinal()`로 고정한다.
 
----
+| 검사 | 반복 횟수 | 판정 기준 | 실제 최대 오차 | 용도 |
+| --- | ---: | --- | ---: | --- |
+| 1,000회 분포 검사 | 난이도별 1,000회 | 확률 차이 5%p 이하 | 3.8143%p | 보조 검사 |
+| 100,000회 분포 검사 | 난이도별 100,000회 | 상대오차 5% 이하 | 1.37% | 최종 판정 |
 
-## 3. Test Suite & Coverage Verification
+- 세 난이도와 일반 블록 7종 모두 각 검사의 기준을 통과하였다.
+- 100,000회 검사는 Req2의 최소 1,000회 반복 조건을 충족한다.
+- 모든 추첨 구간의 가중치와 특수 1칸 블록 제외 여부는 기존 `everyRouletteTicketHasExactlyTheSpecifiedWeight` 테스트로 별도 확인한다.
 
-### 3.1 Test Execution (`./gradlew check`)
-- **Unit & Integration Tests**: 516 tests passed (0 failures, 0 errors, 0 skipped).
-- **GUI Window Tests**: 9 tests passed.
-- **Static Import Audit**: 125 files passed (0 unused imports).
+## 2. 테스트와 커버리지
 
-### 3.2 JaCoCo Line Coverage
-- **Total Line Coverage**: **2,097 / 2,234 lines (93.87%)** — exceeds the Req2 requirement of **$\ge 50\%$**.
-- **Branch Coverage**: **713 / 841 branches (84.78%)**.
-- **Instruction Coverage**: **12,463 / 13,370 instructions (93.22%)**.
-- **Class Verifications**: `boardAndPieceCoverageVerification` ($\ge 70\%$) and `gameEngineCoverageVerification` ($\ge 70\%$) both passed.
+다음 명령으로 PR #26 브랜치를 재검증하였다.
+
+```sh
+./gradlew --no-daemon clean build jacocoTestReport
+```
+
+| 항목 | 결과 |
+| --- | --- |
+| 단위 테스트 | 516개 통과, 실패·오류·건너뜀 0개 |
+| 화면을 띄우지 않는 통합 테스트 | 1개 통과 |
+| 합계 | 517개 통과 |
+| 사용하지 않는 import 검사 | 소스 파일 125개, 위반 0개 |
+| 줄 커버리지 | 2,097 / 2,234줄, 93.87% |
+| 분기 커버리지 | 713 / 841개, 84.78% |
+| 명령어 커버리지 | 12,463 / 13,370개, 93.22% |
+
+Req2 12쪽의 중간 평가 줄 커버리지 기준은 50%이다.
+`boardAndPieceCoverageVerification`과 `gameEngineCoverageVerification`의 클래스별 70% 검사도 통과하였다.
+실제 창을 띄우는 `reviewWindowTest`는 기본 `build`에 포함되지 않으며, 아래 Windows 확인 기록과 구분한다.
+
+## 3. 스코어보드 확인 범위와 남은 작업
+
+| 항목 | 현재 상태 | 확인 근거 |
+| --- | --- | --- |
+| 일반 모드·아이템 모드 기록 구분 | 구현·테스트 완료 | `ModeScoreBoardTest` |
+| 기록 저장·불러오기 | 구현·테스트 완료 | `ScoreBoardTest` |
+| 점수를 얻은 난이도 저장·표시 | 미구현, 별도 작업 필요 | `ScoreEntry`에는 이름·점수·모드만 저장됨 |
+
+Req2 3쪽은 스코어보드에서 점수를 얻은 난이도를 확인할 수 있어야 한다고 명시한다.
+난이도별 기록 기능은 이 PR의 검증 완료 항목에 포함하지 않는다.
+후속 작업에서 기록에 난이도를 저장하고 화면에 표시하며, 기존 기록 파일을 불러오는 경우와 재실행 후 유지 여부를 테스트해야 한다.
+
+## 4. 기존 Windows 배포·실행 확인 기록
+
+다음은 이 보고서 최초 작성 시 기록된 Windows 결과이다. 이번 macOS 재검증에서 새로 측정한 결과와 구분하여 보존한다.
+
+- 환경: Windows 11 x64, Temurin JDK 21.0.4, Gradle 8.14.4
+- 빌드 명령: `.\gradlew.bat packageWindows`
+- 실행 파일: `build/windows/Tetris/Tetris.exe`
+- 배포 압축 파일: `build/windows/Tetris-windows-x64.zip` (24.6 MB)
+- SHA-256: `662db1a65fca7979bc28900d380f1cb881f51fcc44a082b805345ca5fa92e315`
+- Java 21 실행 환경 포함: `runtime/bin/javaw.exe`
+- 실행·이동·회전·즉시 낙하, 키 변경·저장, 일시정지·재개, 창 크기 확인·복원, 일반/아이템 모드 기록 구분 확인
+- 실제 창 테스트 `reviewWindowTest`: 기존 보고에서 9개 통과
+
+macOS 배포는 `packageMacos`로 `Tetris.app`과 ZIP을 생성하도록 구성되어 있다.
+이번 보완에서는 macOS 배포 패키지를 새로 생성하지 않았다.
+
+## 5. 이후 확인 사항
+
+- 난이도별 점수 기록 저장·표시와 관련 테스트 구현
+- #24·#25를 main에 반영한 뒤 전체 테스트와 커버리지 재측정

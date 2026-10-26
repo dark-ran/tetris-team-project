@@ -33,8 +33,10 @@ class DifficultyGenerationTest {
         assertFalse(counts.containsKey(PieceType.SINGLE));
     }
 
+    // 1,000회는 확률 차이 5%p를 확인하는 보조 검사이다.
+    // 기대 횟수 대비 상대오차 5%는 아래 100,000회 검사에서 판정한다.
     @ParameterizedTest @EnumSource(Difficulty.class)
-    void pieceDistributionAtOneThousandExecutions(Difficulty difficulty) {
+    void pieceDistributionAtOneThousandExecutionsUsesFivePercentagePointTolerance(Difficulty difficulty) {
         int samples = 1_000;
         PieceQueue queue = new PieceQueue(new Random(20261026 + difficulty.ordinal()), difficulty);
         EnumMap<PieceType, Integer> counts = new EnumMap<>(PieceType.class);
@@ -68,8 +70,9 @@ class DifficultyGenerationTest {
         System.out.println();
     }
 
+    // Req2의 최소 1,000회 조건을 충족하도록 표본을 늘려 상대오차를 확인한다.
     @ParameterizedTest @EnumSource(Difficulty.class)
-    void pieceDistributionStaysWithinFivePercentOfExpectedWeight(Difficulty difficulty) {
+    void pieceDistributionAtOneHundredThousandExecutionsUsesFivePercentRelativeTolerance(Difficulty difficulty) {
         int samples = 100_000;
         PieceQueue queue = new PieceQueue(new Random(20261026 + difficulty.ordinal()), difficulty);
         EnumMap<PieceType, Integer> counts = new EnumMap<>(PieceType.class);
