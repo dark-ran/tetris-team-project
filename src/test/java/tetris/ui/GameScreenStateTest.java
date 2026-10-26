@@ -16,6 +16,39 @@ import tetris.piece.*;
 import tetris.settings.GameSettings;
 
 class GameScreenStateTest {
+    @Test void itemProgressCountsDownAndResetsAtEveryTenClears() throws Exception {
+        SwingUtilities.invokeAndWait(() -> {
+            GameScreen screen = new GameScreen(() -> {}, () -> {}, () -> {});
+            Tetromino item = new Tetromino(PieceType.I).withItem(ItemType.LINE_CLEAR, 0);
+            GameEngine engine = new GameEngine(() -> PieceQueue.generatedBy(() -> item, 1), new CenteredPieceSpawnPolicy());
+            engine.newGame(GameMode.ITEM);
+            screen.render(engine.state());
+            JLabel progress = GameMenuUiTest.tree(screen).filter(JLabel.class::isInstance).map(JLabel.class::cast)
+                    .filter(label -> label.getText().startsWith("다음 아이템까지")).findFirst().orElseThrow();
+            JLabel cleared = GameMenuUiTest.tree(screen).filter(JLabel.class::isInstance).map(JLabel.class::cast)
+                    .filter(label -> label.getText().startsWith("삭제한 줄:")).findFirst().orElseThrow();
+            assertTrue(cleared.isVisible());
+            assertEquals("삭제한 줄: 0줄", cleared.getText());
+            assertTrue(progress.isVisible());
+            assertEquals("다음 아이템까지 10줄", progress.getText());
+            for (int i = 0; i < 9; i++) engine.apply(GameAction.HARD_DROP);
+            screen.render(engine.state());
+            assertEquals("삭제한 줄: 9줄", cleared.getText());
+            assertEquals("다음 아이템까지 1줄", progress.getText());
+            engine.apply(GameAction.HARD_DROP);
+            screen.render(engine.state());
+            assertEquals("삭제한 줄: 10줄", cleared.getText());
+            assertEquals("다음 아이템까지 10줄", progress.getText());
+            engine.newGame(GameMode.ITEM);
+            screen.render(engine.state());
+            assertEquals("삭제한 줄: 0줄", cleared.getText());
+            engine.newGame(GameMode.NORMAL);
+            screen.render(engine.state());
+            assertFalse(progress.isVisible());
+            assertFalse(cleared.isVisible());
+        });
+    }
+
     @Test void everyNextPieceReplacesThePreviousPreviewAndScoreAndLevelFollowTheSnapshot() throws Exception {
         SwingUtilities.invokeAndWait(() -> {
             GameScreen screen = new GameScreen(() -> {}, () -> {}, () -> {});
