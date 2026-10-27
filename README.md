@@ -6,14 +6,16 @@ Java 21과 Swing으로 만든 테트리스다. 일반 모드와 아이템 모드
 
 ## 다운로드와 실행
 
-중간평가 기능 기준은 main `3ccf291`이다. Java 실행 환경과 아이콘이 포함되어 별도 명령 입력 없이 실행할 수 있다.
+중간평가 기능 기준은 main `72207af`이며, PR #31의 게임 종료 시 스코어보드 표시 수정을 포함한다. Java 실행 환경과 아이콘이 포함되어 별도 명령 입력 없이 실행할 수 있다.
 
 | 환경 | 다운로드 | 실행 |
 |---|---|---|
-| Windows x64 | [Windows 실행 패키지](https://github.com/dark-ran/tetris-team-project/actions/runs/40358235959/artifacts/12666981899) | 압축 해제 후 `Tetris/Tetris.exe` |
-| macOS Apple Silicon | [macOS arm64 실행 패키지](https://github.com/dark-ran/tetris-team-project/actions/runs/40358236283/artifacts/12667121964) | 압축 해제 후 `Tetris.app` |
+| Windows x64 | [Windows 실행 패키지](https://github.com/dark-ran/tetris-team-project/actions/runs/40417106166/artifacts/12695887927) | 압축 해제 후 `Tetris/Tetris.exe` |
+| macOS Apple Silicon | [macOS arm64 실행 패키지](https://github.com/dark-ran/tetris-team-project/actions/runs/40417106164/artifacts/12694424200) | 압축 해제 후 `Tetris.app` |
 
 GitHub 로그인 후 Artifact를 받는다. 바깥 ZIP 안의 게임 ZIP도 해제하고 실행파일을 더블클릭한다. Windows는 Tetris 폴더 전체를 유지한다. 패키지 선택·다시 만들기·macOS 첫 실행 안내는 [배포 문서](docs/distribution.md)에 정리한다.
+
+**macOS 첫 실행:** 현재 앱은 Apple 개발자 인증 서명·공증을 받지 않아 실행이 차단될 수 있다. 저장소의 배포 링크에서 받은 앱인지 확인한 뒤, 경고 창에서 **완료 → 시스템 설정 → 개인정보 보호 및 보안 → 그래도 열기 → 인증 후 열기** 순서로 진행한다. [경고 원인과 실행 절차](docs/macos-distribution.md#첫-실행이-차단될-때)
 
 macOS arm64는 앱 실행·조작·설정과 점수 유지를 확인했다. Windows는 자동 검사·패키지 생성까지 확인했으며 실제 PC 실행 결과는 별도로 확인한다.
 
