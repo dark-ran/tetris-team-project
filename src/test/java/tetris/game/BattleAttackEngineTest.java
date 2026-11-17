@@ -68,6 +68,17 @@ class BattleAttackEngineTest {
     }
 
     @Test
+    @DisplayName("줄 삭제 아이템이 L이 있는 줄 1줄만 지우면 공격하지 않는다")
+    void lineClearItemAloneDoesNotAttack() {
+        Tetromino marked = new Tetromino(PieceType.O).withItem(ItemType.LINE_CLEAR, 0);
+        GameEngine engine = engine(List.of(marked), 0);
+        engine.newGame();
+        GameActionResult result = engine.apply(GameAction.HARD_DROP);
+        assertEquals(1, result.clearedRows());
+        assertTrue(result.attackLines().isEmpty());
+    }
+
+    @Test
     @DisplayName("마지막 블록 칸을 빼면 남는 칸이 없는 줄은 넘기지 않는다")
     void rowWithOnlyTheLastPieceIsNotSent() {
         Tetromino marked = new Tetromino(PieceType.O).withItem(ItemType.LINE_CLEAR, 0);
