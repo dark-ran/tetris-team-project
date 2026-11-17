@@ -15,10 +15,14 @@ import tetris.rule.PieceRules;
 import tetris.rule.LineClearBonus;
 import java.util.Set;
 
-/** 화면과 타이머에 의존하지 않고 행동과 진행 상태를 처리한다. 호출은 한 실행 흐름에서 한다. */
+/**
+ * 화면과 타이머에 의존하지 않고 행동과 진행 상태를 처리한다. 호출은 한 실행 흐름에서 한다.
+ * 예외로 {@link #receiveAttack(List)}는 상대 플레이어의 스레드에서 호출해도 된다.
+ */
 public final class GameEngine {
     public static final int ROWS_PER_ITEM = 10;
     private final Board board = new Board();
+    private final AttackQueue incomingAttacks = new AttackQueue();
     private final Function<Difficulty, PieceQueue> pieceQueueFactory;
     private final PieceSpawnPolicy spawnPolicy;
     private final UnaryOperator<Tetromino> itemGenerator;
@@ -101,6 +105,7 @@ public final class GameEngine {
         Objects.requireNonNull(difficulty);
         PieceQueue newQueue = Objects.requireNonNull(pieceQueueFactory.apply(difficulty), "생성한 블록 목록이 필요합니다.");
         board.reset();
+        incomingAttacks.clear();
         pieceQueue = newQueue;
         currentPiece = null;
         score = 0;
@@ -145,7 +150,18 @@ public final class GameEngine {
         return new GameState(board, currentPiece, currentRow, currentColumn,
                 pieceQueue == null ? List.of() : pieceQueue.previewPieces(), phase, score, level,
                 spawnedPieces, totalClearedRows, currentPiece == null ? currentRow
-                        : currentRules.movement().landingRow(board, currentPiece, currentRow, currentColumn), mode, difficulty);
+                        : currentRules.movement().landingRow(board, currentPiece, currentRow, currentColumn), mode, difficulty,
+                incomingAttacks.pending());
+    }
+
+    /**
+     * 상대가 보낸 공격 줄을 대기열에 넣는다. 보드에는 현재 블록을 고정한 뒤 다음 블록 생성 전에 추가된다.
+     * 대기열의 10줄 제한을 적용하며, 다른 스레드에서 호출해도 된다.
+     *
+     * @return 실제로 대기열에 들어간 줄 수
+     */
+    public int receiveAttack(List<AttackLine> lines) {
+        return incomingAttacks.offer(lines);
     }
 
     public boolean isGameOver() {
@@ -206,15 +222,47 @@ public final class GameEngine {
         currentRules.lockEffect().onLock(board, currentPiece, currentRow, currentColumn);
         Set<Integer> rows = currentRules.lockEffect().rowsToClear(board, currentPiece, currentRow, currentColumn);
         int lineScoreMultiplier = LineClearBonus.multiplier(board, rows);
+        List<AttackLine> attackLines = BattleRules.sendsAttack(currentPiece.itemType(), rows.size())
+                ? attackLinesFrom(rows) : List.of();
         int clearedRows = board.clearRows(rows);
         int previousClearedRows = totalClearedRows;
         totalClearedRows += clearedRows;
         if (mode == GameMode.ITEM) {
             pendingItems += totalClearedRows / ROWS_PER_ITEM - previousClearedRows / ROWS_PER_ITEM;
         }
-        boolean spawned = spawnNextPiece();
+        boolean spawned = addIncomingAttacks() && spawnNextPiece();
         return new GameActionResult(true, droppedRows, clearedRows, true, spawned,
-                previousPhase, phase, lineScoreMultiplier);
+                previousPhase, phase, lineScoreMultiplier, attackLines);
+    }
+
+    /** 삭제할 줄에서 방금 고정한 블록의 칸을 빼고 위에서 아래 순서로 공격 줄을 만든다. */
+    private List<AttackLine> attackLinesFrom(Set<Integer> rows) {
+        int[][] cells = board.snapshot();
+        boolean[][] lockedCells = new boolean[Board.ROWS][Board.COLUMNS];
+        if (currentRules.leavesPieceOnBoard()) {
+            for (int[] cell : currentPiece.cells()) {
+                lockedCells[currentRow + cell[0]][currentColumn + cell[1]] = true;
+            }
+        }
+        return rows.stream().sorted().map(row -> {
+            boolean[] filled = new boolean[Board.COLUMNS];
+            for (int column = 0; column < Board.COLUMNS; column++) {
+                filled[column] = cells[row][column] != Board.EMPTY_CELL && !lockedCells[row][column];
+            }
+            return new AttackLine(filled);
+        }).toList();
+    }
+
+    /** 대기 중인 공격 줄을 보드 아래에 추가한다. 고정 칸이 위로 넘치면 게임오버로 바꾸고 false를 반환한다. */
+    private boolean addIncomingAttacks() {
+        List<AttackLine> lines = incomingAttacks.drain();
+        if (lines.isEmpty()) return true;
+        boolean overflowed = board.addRowsAtBottom(lines.stream()
+                .map(AttackLine::filled).toArray(boolean[][]::new));
+        if (!overflowed) return true;
+        currentPiece = null;
+        phase = GamePhase.GAME_OVER;
+        return false;
     }
 
     private boolean spawnNextPiece() {

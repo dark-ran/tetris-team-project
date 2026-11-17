@@ -12,6 +12,8 @@ public final class Board {
     public static final int ROWS = 20;
     public static final int COLUMNS = 10;
     public static final int EMPTY_CELL = 0;
+    /** 대전 모드에서 상대에게 받은 공격 줄의 칸 값. 블록 종류 값(1~8)과 겹치지 않으며 회색으로 그린다. */
+    public static final int GARBAGE_CELL = 9;
 
     /** @deprecated 기존 코드와의 호환을 위한 이름이다. 새 코드에서는 {@link #COLUMNS}를 사용한다. */
     @Deprecated
@@ -156,6 +158,46 @@ public final class Board {
             Arrays.fill(fixedItems[row], ItemType.NONE);
         }
         return clearedRows;
+    }
+
+    /**
+     * 기존 칸을 위로 올리고 보드 아래에 공격 줄을 추가한다. 줄 순서는 위에서 아래이다.
+     * 채워진 칸은 {@link #GARBAGE_CELL}이며 아이템은 없다.
+     *
+     * @param rows 줄마다 열별로 채워진 칸이면 true인 배열
+     * @return 위로 밀려 보드 밖으로 나간 고정 칸이 있으면 true (게임오버 판정용)
+     */
+    public boolean addRowsAtBottom(boolean[][] rows) {
+        Objects.requireNonNull(rows, "추가할 줄이 필요합니다.");
+        for (boolean[] row : rows) {
+            if (row == null || row.length != COLUMNS) {
+                throw new IllegalArgumentException("추가할 줄은 " + COLUMNS + "칸이어야 합니다.");
+            }
+        }
+        int count = rows.length;
+        if (count == 0) return false;
+        if (count > ROWS) throw new IllegalArgumentException("보드 높이보다 많은 줄은 추가할 수 없습니다.");
+        boolean overflowed = false;
+        for (int row = 0; row < count && !overflowed; row++) {
+            for (int cellValue : fixedCells[row]) {
+                if (cellValue != EMPTY_CELL) {
+                    overflowed = true;
+                    break;
+                }
+            }
+        }
+        for (int row = 0; row < ROWS - count; row++) {
+            System.arraycopy(fixedCells[row + count], 0, fixedCells[row], 0, COLUMNS);
+            System.arraycopy(fixedItems[row + count], 0, fixedItems[row], 0, COLUMNS);
+        }
+        for (int index = 0; index < count; index++) {
+            int target = ROWS - count + index;
+            for (int column = 0; column < COLUMNS; column++) {
+                fixedCells[target][column] = rows[index][column] ? GARBAGE_CELL : EMPTY_CELL;
+                fixedItems[target][column] = ItemType.NONE;
+            }
+        }
+        return overflowed;
     }
 
     /** 빈 칸은 0, 고정된 블록은 PieceType의 칸 저장값인 보드 사본을 반환한다. */
