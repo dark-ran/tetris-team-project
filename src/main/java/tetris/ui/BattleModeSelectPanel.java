@@ -1,6 +1,7 @@
 package tetris.ui;
 
 import java.awt.BorderLayout;
+import java.awt.Dimension;
 import java.awt.Font;
 import java.awt.GridLayout;
 import java.util.EnumMap;
@@ -21,9 +22,9 @@ public class BattleModeSelectPanel extends JPanel {
     static { AppTheme.install(); }
 
     private static final Map<BattleMode, String> DESCRIPTIONS = Map.of(
-            BattleMode.NORMAL, "2줄 이상 지우면 상대에게 줄을 넘깁니다.",
-            BattleMode.ITEM, "일반 대전에 아이템이 등장합니다.",
-            BattleMode.TIME_LIMIT, "시간이 끝나면 점수 높은 쪽 승리");
+            BattleMode.NORMAL, "줄을 지워 상대를 공격",
+            BattleMode.ITEM, "일반 대전 + 아이템",
+            BattleMode.TIME_LIMIT, "2분 뒤 점수가 높은 쪽 승리");
 
     private final Map<BattleMode, JButton> buttons = new EnumMap<>(BattleMode.class);
     private final JLabel selectedLabel = ScreenSupport.mutedLabel("모드를 선택하세요.");
@@ -38,9 +39,13 @@ public class BattleModeSelectPanel extends JPanel {
         add(title, BorderLayout.NORTH);
         JPanel list = ScreenSupport.transparentPanel(new GridLayout(BattleMode.values().length, 1, 0, 8));
         for (BattleMode mode : BattleMode.values()) {
-            JButton button = ScreenSupport.button(mode + "  -  " + DESCRIPTIONS.get(mode), () -> choose(mode));
+            JButton button = ScreenSupport.button(mode.toString(), () -> choose(mode));
+            button.setPreferredSize(new Dimension(170, 40));
             buttons.put(mode, button);
-            list.add(button);
+            JPanel row = ScreenSupport.transparentPanel(new BorderLayout(14, 0));
+            row.add(button, BorderLayout.WEST);
+            row.add(ScreenSupport.mutedLabel(DESCRIPTIONS.get(mode)), BorderLayout.CENTER);
+            list.add(row);
         }
         add(list, BorderLayout.CENTER);
         add(selectedLabel, BorderLayout.SOUTH);
