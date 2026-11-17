@@ -8,6 +8,12 @@ public enum AppState {
     GAME_OVER,
     SETTINGS,
     SCOREBOARD,
+    /** 한 PC 2인 대전 모드 선택. */
+    BATTLE_SELECT,
+    /** 대전 진행 화면. 로컬 대전과 P2P 대전이 함께 사용한다. */
+    BATTLE,
+    /** P2P 대전 연결·대기실. */
+    P2P_LOBBY,
     EXIT;
 
     /**

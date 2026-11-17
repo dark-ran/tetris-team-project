@@ -155,6 +155,9 @@ class AppControllerTest {
             case SETTINGS -> app.showSettings();
             case SCOREBOARD -> app.showScoreboard();
             case GAME_OVER -> app.showGameOver();
+            case BATTLE_SELECT -> app.showBattleSelect();
+            case BATTLE -> app.startLocalBattle(tetris.game.BattleMode.NORMAL);
+            case P2P_LOBBY -> app.showP2PLobby();
             case EXIT -> throw new IllegalArgumentException("EXIT is not a screen");
         }
         assertScreen(app, screen);

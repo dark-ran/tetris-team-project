@@ -29,6 +29,12 @@ public class StartMenu extends JPanel {
 
     public StartMenu(Runnable onStart, Runnable onItemStart, Runnable onSettings,
             Runnable onScoreboard, Runnable onExit) {
+        this(onStart, onItemStart, null, null, onSettings, onScoreboard, onExit);
+    }
+
+    /** 대전 모드(한 PC 2인)와 P2P 대전 버튼을 함께 표시한다. null인 버튼은 표시하지 않는다. */
+    public StartMenu(Runnable onStart, Runnable onItemStart, Runnable onBattle, Runnable onP2PBattle,
+            Runnable onSettings, Runnable onScoreboard, Runnable onExit) {
         setLayout(new BorderLayout(0, 20));
         setBackground(AppTheme.BACKGROUND);
         setBorder(BorderFactory.createEmptyBorder(26, 34, 24, 34));
@@ -40,6 +46,8 @@ public class StartMenu extends JPanel {
         List<JButton> buttons = new ArrayList<>();
         buttons.add(startButton);
         if (onItemStart != null) buttons.add(ScreenSupport.button("아이템 모드 시작", onItemStart));
+        if (onBattle != null) buttons.add(ScreenSupport.button("대전 모드", onBattle));
+        if (onP2PBattle != null) buttons.add(ScreenSupport.button("P2P 대전", onP2PBattle));
         buttons.addAll(List.of(settingsButton, scoreboardButton, exitButton));
 
         JPanel title = ScreenSupport.transparentPanel(new BorderLayout(0, 8));
