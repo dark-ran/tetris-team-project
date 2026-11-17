@@ -84,6 +84,8 @@ class AttackQueueTest {
         assertEquals(line("#.........").hashCode(), attack.hashCode());
         assertFalse(attack.equals("#"));
         assertEquals("AttackLine[#.........]", attack.toString());
+        assertTrue(attack.hasFilledCell());
+        assertFalse(line("..........").hasFilledCell());
         assertTrue(Arrays.equals(attack.filled(), line("#.........").filled()));
     }
 }

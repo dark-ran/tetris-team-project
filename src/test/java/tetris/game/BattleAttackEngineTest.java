@@ -68,6 +68,19 @@ class BattleAttackEngineTest {
     }
 
     @Test
+    @DisplayName("마지막 블록 칸을 빼면 남는 칸이 없는 줄은 넘기지 않는다")
+    void rowWithOnlyTheLastPieceIsNotSent() {
+        Tetromino marked = new Tetromino(PieceType.O).withItem(ItemType.LINE_CLEAR, 0);
+        GameEngine engine = engine(List.of(I, I, marked), 2, 6, 0);
+        engine.newGame();
+        engine.apply(GameAction.HARD_DROP);
+        engine.apply(GameAction.HARD_DROP);
+        GameActionResult result = engine.apply(GameAction.HARD_DROP);
+        assertEquals(2, result.clearedRows());
+        assertEquals(List.of(line("..########")), result.attackLines());
+    }
+
+    @Test
     @DisplayName("받은 공격 줄은 블록을 고정한 뒤 다음 블록 생성 전에 보드 아래에 회색 칸으로 추가된다")
     void receivedLinesAreAddedAfterTheNextLock() {
         GameEngine engine = engine(List.of(O), 0);

@@ -235,7 +235,10 @@ public final class GameEngine {
                 previousPhase, phase, lineScoreMultiplier, attackLines);
     }
 
-    /** 삭제할 줄에서 방금 고정한 블록의 칸을 빼고 위에서 아래 순서로 공격 줄을 만든다. */
+    /**
+     * 삭제할 줄에서 방금 고정한 블록의 칸을 빼고 위에서 아래 순서로 공격 줄을 만든다.
+     * 블록 칸을 빼면 남는 칸이 없는 줄(줄 삭제 아이템으로 지운 줄 등)은 넘기지 않는다.
+     */
     private List<AttackLine> attackLinesFrom(Set<Integer> rows) {
         int[][] cells = board.snapshot();
         boolean[][] lockedCells = new boolean[Board.ROWS][Board.COLUMNS];
@@ -250,7 +253,7 @@ public final class GameEngine {
                 filled[column] = cells[row][column] != Board.EMPTY_CELL && !lockedCells[row][column];
             }
             return new AttackLine(filled);
-        }).toList();
+        }).filter(AttackLine::hasFilledCell).toList();
     }
 
     /** 대기 중인 공격 줄을 보드 아래에 추가한다. 고정 칸이 위로 넘치면 게임오버로 바꾸고 false를 반환한다. */

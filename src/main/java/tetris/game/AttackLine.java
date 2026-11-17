@@ -32,6 +32,14 @@ public final class AttackLine implements Serializable {
         return filled[Objects.checkIndex(column, Board.COLUMNS)];
     }
 
+    /** 채워진 칸이 하나라도 있는지. */
+    public boolean hasFilledCell() {
+        for (boolean cell : filled) {
+            if (cell) return true;
+        }
+        return false;
+    }
+
     @Override public boolean equals(Object other) {
         return other instanceof AttackLine line && Arrays.equals(filled, line.filled);
     }
