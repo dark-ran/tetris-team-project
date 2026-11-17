@@ -15,9 +15,9 @@ import tetris.piece.ItemType;
 class BattleRulesTest {
     @ParameterizedTest
     @EnumSource(ItemType.class)
-    @DisplayName("아이템 중 줄 삭제와 1칸 블록만 공격으로 인정")
-    void onlyLineClearAndSingleItemsAttack(ItemType item) {
-        boolean expected = item == ItemType.NONE || item == ItemType.LINE_CLEAR || item == ItemType.SINGLE;
+    @DisplayName("아이템 중 줄 삭제만 공격으로 인정")
+    void onlyLineClearItemAttacks(ItemType item) {
+        boolean expected = item == ItemType.NONE || item == ItemType.LINE_CLEAR;
         assertEquals(expected, BattleRules.sendsAttack(item, 2));
         assertFalse(BattleRules.sendsAttack(item, 1));
     }

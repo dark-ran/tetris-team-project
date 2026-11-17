@@ -18,13 +18,13 @@ public final class BattleRules {
 
     /**
      * 고정한 블록과 삭제한 줄 수로 공격 여부를 정한다.
-     * 아이템 중에서는 줄 삭제(L)와 1칸 블록만 공격으로 인정한다.
+     * 아이템 중에서는 줄 삭제(L)만 공격으로 인정한다.
+     * 1칸 블록은 한 번에 1줄까지만 채울 수 있어 공격 조건(2줄 이상)에 해당하지 않는다.
      */
     public static boolean sendsAttack(ItemType pieceItem, int clearedRows) {
         Objects.requireNonNull(pieceItem, "고정한 블록의 아이템 종류가 필요합니다.");
         if (clearedRows < MIN_ROWS_FOR_ATTACK) return false;
-        return pieceItem == ItemType.NONE || pieceItem == ItemType.LINE_CLEAR
-                || pieceItem == ItemType.SINGLE;
+        return pieceItem == ItemType.NONE || pieceItem == ItemType.LINE_CLEAR;
     }
 
     /** 남은 시간. 0 미만으로 내려가지 않는다. */
