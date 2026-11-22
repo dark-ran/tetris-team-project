@@ -5,12 +5,14 @@ import java.awt.Dimension;
 import java.awt.Window;
 import java.io.UncheckedIOException;
 import java.util.Objects;
+import java.util.function.BiConsumer;
 import java.util.function.Consumer;
 import java.util.function.LongConsumer;
 import javax.swing.JComponent;
 import javax.swing.JPanel;
 import javax.swing.SwingUtilities;
 import javax.swing.Timer;
+import tetris.game.BattleMode;
 import tetris.game.GameAction;
 import tetris.game.Difficulty;
 import tetris.game.GameActionResult;
@@ -29,7 +31,10 @@ import tetris.scoreboard.ScoreEntry;
 import tetris.settings.GameSettings;
 import tetris.settings.SettingsService;
 import tetris.ui.AppTheme;
+import tetris.ui.BattleScreen;
+import tetris.ui.BattleSelectScreen;
 import tetris.ui.GameOverScreen;
+import tetris.ui.PlaceholderScreen;
 import tetris.ui.GameScreen;
 import tetris.ui.ScoreboardScreen;
 import tetris.ui.SettingsScreen;
@@ -55,6 +60,12 @@ public class AppController {
     private final SettingsScreen settingsScreen;
     private final ScoreboardScreen scoreboardScreen;
     private final GameOverScreen gameOverScreen;
+    private final BattleSelectScreen battleSelectScreen;
+    private final BattleScreen battleScreen;
+    private final JPanel p2pLobbySlot = new JPanel(new java.awt.BorderLayout());
+    private final PlaceholderScreen p2pPlaceholder;
+    private BiConsumer<BattleMode, BattleScreen> localBattleStarter = (mode, screen) -> { };
+    private Runnable p2pLobbyOnShow;
     private final GameEngine engine;
     private final GameLoop loop;
     private final KeyMapper keyMapper = new KeyMapper();
@@ -125,7 +136,16 @@ public class AppController {
 
         startMenu = register(AppState.START_MENU,
                 new StartMenu(this::startGame, () -> startGame(GameMode.ITEM),
+                        this::showBattleSelect, this::showP2PLobby,
                         this::showSettings, this::showScoreboard, this::exit));
+
+        battleSelectScreen = register(AppState.BATTLE_SELECT,
+                new BattleSelectScreen(this::startLocalBattle, this::showStartMenu));
+        battleScreen = register(AppState.BATTLE, new BattleScreen());
+        p2pPlaceholder = new PlaceholderScreen("P2P 대전",
+                "네트워크로 연결한 PC 2대에서 대결합니다.", this::showStartMenu);
+        p2pLobbySlot.add(p2pPlaceholder);
+        register(AppState.P2P_LOBBY, p2pLobbySlot);
 
         gameScreen = register(AppState.GAME,
                 new GameScreen(this::showGameMenu, this::showStartMenu, this::exit));
@@ -190,6 +210,67 @@ public class AppController {
     public void showStartMenu() {
         settingsFromGame = false;
         activate(AppState.START_MENU, startMenu::showScreen);
+    }
+
+    /** 시작 메뉴 "대전 모드": 한 PC 2인 대전의 모드 선택 화면으로 이동한다. */
+    public void showBattleSelect() {
+        activate(AppState.BATTLE_SELECT, battleSelectScreen::showScreen);
+    }
+
+    /**
+     * 모드 선택 후 대전 화면으로 이동하고, 등록된 로컬 대전 시작 동작에 모드와 화면을 넘긴다.
+     * 화면은 빈 보드로 초기화한 뒤 넘기며, 게임 진행·키 연결·결과 처리는 시작 동작이 맡는다.
+     */
+    public void startLocalBattle(BattleMode mode) {
+        Objects.requireNonNull(mode);
+        showBattleScreen(mode, "P1", "P2");
+        localBattleStarter.accept(mode, battleScreen);
+    }
+
+    /**
+     * 대전 화면으로 이동한다. P2P 대전은 이 메서드로 화면만 띄우고 진행은 직접 연결한다.
+     * 이전 대전의 결과·키·상태 문구는 지운다.
+     */
+    public void showBattleScreen(BattleMode mode, String leftName, String rightName) {
+        Objects.requireNonNull(mode);
+        battleScreen.hideResult();
+        battleScreen.clearKeys();
+        battleScreen.setStatusMessage(null, false);
+        battleScreen.setControlsGuide("", "");
+        battleScreen.setPlayerNames(leftName, rightName);
+        battleScreen.setMode(mode);
+        battleScreen.render(null, null);
+        activate(AppState.BATTLE, battleScreen::showScreen);
+    }
+
+    /** 시작 메뉴 "P2P 대전": 등록된 P2P 화면(없으면 준비 중 화면)으로 이동한다. */
+    public void showP2PLobby() {
+        activate(AppState.P2P_LOBBY, () -> {
+            if (p2pLobbyOnShow != null) p2pLobbyOnShow.run();
+            else p2pPlaceholder.showScreen();
+        });
+    }
+
+    /** 한 PC 2인 대전을 실제로 진행하는 동작을 등록한다. 모드 선택 직후 호출된다. */
+    public void setLocalBattleStarter(BiConsumer<BattleMode, BattleScreen> starter) {
+        localBattleStarter = Objects.requireNonNull(starter);
+    }
+
+    /**
+     * P2P 대전 화면을 등록한다. 준비 중 화면 자리를 대신하며, onShow는 화면에 들어올 때마다 호출된다.
+     */
+    public void setP2PLobby(JComponent lobby, Runnable onShow) {
+        Objects.requireNonNull(lobby);
+        p2pLobbySlot.removeAll();
+        p2pLobbySlot.add(lobby);
+        p2pLobbyOnShow = onShow;
+        p2pLobbySlot.revalidate();
+        p2pLobbySlot.repaint();
+    }
+
+    /** 로컬·P2P 대전이 함께 쓰는 대전 화면. */
+    public BattleScreen battleScreen() {
+        return battleScreen;
     }
 
     /** 메뉴 복귀 전의 게임을 이어 하지 않고 초기화한다. */
@@ -565,6 +646,7 @@ public class AppController {
     private void applySettingsToModules(GameSettings next) {
         keyMapper.updateBindings(next.keyBindings());
         gameScreen.applySettings(next);
+        battleScreen.setAppearance(next.colorVisionMode(), next.piecePatternsEnabled());
         settingsScreen.showSettings(next);
         gameScreen.render(engine.state());
         resizeWindow(next.windowDimension());

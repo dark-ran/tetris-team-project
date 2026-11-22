@@ -20,10 +20,13 @@ public final class GameState {
     private final int level;
     private final int spawnedPieces;
     private final int totalClearedRows;
+    private final List<AttackLine> pendingAttackLines;
 
     GameState(Board board, Tetromino currentPiece, int currentRow, int currentColumn,
             List<Tetromino> nextPieces, GamePhase phase, long score, int level,
-            int spawnedPieces, int totalClearedRows, int landingRow, GameMode mode, Difficulty difficulty) {
+            int spawnedPieces, int totalClearedRows, int landingRow, GameMode mode, Difficulty difficulty,
+            List<AttackLine> pendingAttackLines) {
+        this.pendingAttackLines = List.copyOf(pendingAttackLines);
         this.board = board.copy();
         this.currentPiece = currentPiece;
         this.currentRow = currentRow;
@@ -87,6 +90,11 @@ public final class GameState {
     /** 첫 블록을 포함하여 생성에 성공한 블록의 누적 개수. */
     public int spawnedPieces() {
         return spawnedPieces;
+    }
+
+    /** 대전 모드에서 다음 블록 생성 전에 보드 아래에 추가될 공격 줄. 위에서 아래 순서이다. */
+    public List<AttackLine> pendingAttackLines() {
+        return pendingAttackLines;
     }
 
     /** 현재 게임에서 삭제한 줄의 누적 개수. */
