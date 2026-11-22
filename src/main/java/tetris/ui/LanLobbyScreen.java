@@ -120,7 +120,7 @@ public final class LanLobbyScreen extends JPanel {
 
             @Override
             protected JButton createArrowButton() {
-                JButton arrow = new JButton("▾");
+                JButton arrow = new JButton("▼");
                 arrow.setFont(AppTheme.font(Font.PLAIN, 17f));
                 arrow.setForeground(AppTheme.TEXT);
                 arrow.setContentAreaFilled(false);

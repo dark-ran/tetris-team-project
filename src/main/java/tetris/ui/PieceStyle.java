@@ -43,7 +43,7 @@ final class PieceStyle {
             g.setColor(fill); g.fillRect(x, y, size, size);
             if (type == PieceType.SINGLE) {
                 g.setColor(Color.BLACK);
-                g.setFont(new Font(Font.SANS_SERIF, Font.BOLD, Math.max(1, size * 3 / 4)));
+                g.setFont(AppTheme.font(Font.BOLD, Math.max(1, size * 3 / 4)));
                 FontMetrics metrics = g.getFontMetrics();
                 g.drawString("1", x + (size - metrics.stringWidth("1")) / 2,
                         y + (size - metrics.getHeight()) / 2 + metrics.getAscent());
@@ -102,7 +102,7 @@ final class PieceStyle {
             g.setColor(new Color(0x181818));
             g.fillRect(x + inset, y + inset, size - inset * 2, size - inset * 2);
             g.setColor(Color.WHITE);
-            g.setFont(new Font(Font.SANS_SERIF, Font.BOLD, Math.max(8, size * 3 / 4)));
+            g.setFont(AppTheme.font(Font.BOLD, Math.max(8, size * 3 / 4)));
             FontMetrics metrics = g.getFontMetrics();
             g.drawString(item.symbol(), x + (size - metrics.stringWidth(item.symbol())) / 2,
                     y + (size - metrics.getHeight()) / 2 + metrics.getAscent());
