@@ -32,6 +32,7 @@ import org.junit.jupiter.api.io.TempDir;
 import tetris.app.AppController;
 import tetris.app.AppState;
 import tetris.game.BattleMode;
+import tetris.game.GameAction;
 import tetris.game.GameEngine;
 import tetris.game.PieceSpawnPolicy;
 import tetris.game.PlayerSession;
@@ -40,8 +41,13 @@ import tetris.piece.PieceQueue;
 import tetris.piece.PieceType;
 import tetris.piece.Tetromino;
 import tetris.loop.GameLoop;
+import java.util.Map;
 import tetris.scoreboard.ScoreBoardService;
 import tetris.scoreboard.ScoreRepository;
+import tetris.settings.ColorVisionMode;
+import tetris.settings.GameSettings;
+import tetris.settings.SettingsRepository;
+import tetris.settings.SettingsService;
 
 class LanLobbyTest {
     @TempDir Path directory;
@@ -256,10 +262,108 @@ class LanLobbyTest {
         }
     }
 
+    @Test
+    void pauseSynchronizesAcrossPeersAndAppliesUpdatedSettingsOnResume() throws Exception {
+        Peer host = onEdt(() -> openLobby("pause-host", 0));
+        Peer client = null;
+        try {
+            onEdt(() -> {
+                component(host.lobby, JComboBox.class).setSelectedItem("127.0.0.1");
+                button(host.lobby, "서버 열기").doClick(0);
+                return null;
+            });
+            await(() -> text(host.lobby).contains("서버 대기 중"));
+            int port = onEdt(() -> {
+                String label = text(host.lobby);
+                return Integer.parseInt(label.substring(label.lastIndexOf("TCP ") + 4).trim());
+            });
+            Peer guest = onEdt(() -> openLobby("pause-guest", port));
+            client = guest;
+            connect(guest, "127.0.0.1");
+            await(() -> isGameStartAvailable(host) && isGameStartAvailable(guest));
+            startBoth(host, guest);
+            await(() -> boardSnapshot(guest, "나 보드") != null);
+
+            long guestScoreBefore = onEdt(() -> boardSnapshot(guest, "나 보드").score());
+            onEdt(() -> {
+                pressKey(guest, KeyEvent.VK_ESCAPE);
+                assertTrue(guest.app.battleScreen().isMenuVisible());
+                return null;
+            });
+            await(() -> "상대 일시정지".equals( labelText(host)));
+            onEdt(() -> {
+                // While paused, neither peer's drop key advances the board.
+                pressKey(guest, KeyEvent.VK_SPACE);
+                pressKey(host, KeyEvent.VK_SPACE);
+                assertEquals(guestScoreBefore, boardSnapshot(guest, "나 보드").score());
+                // Host also opens pause menu while guest is in settings.
+                pressKey(host, KeyEvent.VK_ESCAPE);
+                assertTrue(host.app.battleScreen().isMenuVisible());
+                button(guest.app.battleScreen(), "설정").doClick(0);
+                assertEquals(AppState.SETTINGS, guest.app.state());
+                GameSettings updated = guest.app.snapshot().settings()
+                        .withColorVisionMode(ColorVisionMode.PROTAN)
+                        .withKeyBindings(Map.of(GameAction.HARD_DROP.name(), KeyEvent.VK_F));
+                guest.app.updateSettings(updated);
+                guest.app.closeSettings();
+                assertEquals(AppState.BATTLE, guest.app.state());
+                assertTrue(guest.app.battleScreen().isMenuVisible());
+                button(guest.app.battleScreen(), "게임으로 돌아가기").doClick(0);
+                assertFalse(guest.app.battleScreen().isMenuVisible());
+                return null;
+            });
+            // Host is still paused, so guest now sees that the peer is paused.
+            await(() -> "상대 일시정지".equals(labelText(guest)));
+            onEdt(() -> {
+                pressKey(host, KeyEvent.VK_ESCAPE);
+                assertFalse(host.app.battleScreen().isMenuVisible());
+                return null;
+            });
+            await(() -> labelText(host).isEmpty() && labelText(guest).isEmpty());
+            onEdt(() -> {
+                pressKey(guest, KeyEvent.VK_F);
+                return null;
+            });
+            await(() -> boardSnapshot(guest, "나 보드").score() > guestScoreBefore);
+            onEdt(() -> {
+                pressKey(host, KeyEvent.VK_ESCAPE);
+                button(host.app.battleScreen(), "시작 메뉴로 이동").doClick(0);
+                assertEquals(AppState.START_MENU, host.app.state());
+                return null;
+            });
+            await(() -> guest.app.state() == AppState.P2P_LOBBY && text(guest.lobby).contains("끊겼습니다"));
+        } finally {
+            Peer guest = client;
+            onEdt(() -> {
+                host.lobby.close();
+                host.app.exit();
+                if (guest != null) { guest.lobby.close(); guest.app.exit(); }
+                return null;
+            });
+        }
+    }
+
+    private static void pressKey(Peer peer, int keyCode) {
+        var screen = peer.app.battleScreen();
+        Object name = screen.getInputMap(JComponent.WHEN_IN_FOCUSED_WINDOW)
+                .get(KeyStroke.getKeyStroke(keyCode, 0, false));
+        if (name != null) {
+            screen.getActionMap().get(name).actionPerformed(new ActionEvent(screen, 0, "key"));
+        }
+    }
+
+    private static String labelText(Peer peer) throws Exception {
+        var method = peer.app.battleScreen().getClass().getDeclaredMethod("statusText");
+        method.setAccessible(true);
+        return (String) method.invoke(peer.app.battleScreen());
+    }
+
     private Peer openLobby(String name, int port) {
         var scores = new ScoreBoardService(new ScoreRepository(directory.resolve(name + "-scores")));
+        var settings = new SettingsService(new SettingsRepository(directory.resolve(name + "-settings.properties")));
         AppController app = new AppController(() -> {}, new GameEngine(), new GameLoop(),
-                ignored -> {}, ignored -> {}, scores, null, ignored -> {});
+                ignored -> {}, ignored -> {}, scores, settings, null);
+        app.start();
         LanLobby panel = new LanLobby(app, directory.resolve(name + ".txt"), port);
         app.setP2PLobby(panel, panel::showLobby);
         app.showP2PLobby();

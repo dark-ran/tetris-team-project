@@ -137,4 +137,28 @@ class BattleNavigationTest {
             assertThrows(NullPointerException.class, () -> app.setP2PLobby(null, null));
         });
     }
+
+    @Test
+    @DisplayName("대전 화면에서 설정을 열면 일시정지 메뉴로 돌아오고 시작 메뉴로 빠지지 않는다")
+    void settingsFromBattleReturnsToPausedBattleMenu() throws Exception {
+        SwingUtilities.invokeAndWait(() -> {
+            AppController app = newApp();
+            app.start();
+            app.showBattleScreen(BattleMode.NORMAL, "나", "상대");
+            assertEquals(AppState.BATTLE, app.state());
+            assertFalse(app.battleScreen().isMenuVisible());
+
+            app.showSettings();
+            assertEquals(AppState.SETTINGS, app.state());
+            assertTrue(app.battleScreen().isMenuVisible());
+
+            button(app, "돌아가기").doClick(0);
+            assertEquals(AppState.BATTLE, app.state());
+            assertTrue(app.battleScreen().isMenuVisible());
+
+            button(app, "게임으로 돌아가기").doClick(0);
+            assertFalse(app.battleScreen().isMenuVisible());
+            assertEquals(AppState.BATTLE, app.state());
+        });
+    }
 }

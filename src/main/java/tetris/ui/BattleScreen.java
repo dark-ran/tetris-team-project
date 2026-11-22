@@ -8,6 +8,7 @@ import java.awt.Font;
 import java.awt.Graphics;
 import java.awt.GridBagLayout;
 import java.awt.GridLayout;
+import java.awt.event.KeyEvent;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
@@ -47,6 +48,7 @@ public class BattleScreen extends JPanel {
     private final BattlePlayerPanel right;
     private final JLabel leftGuide = ScreenSupport.mutedLabel("");
     private final JLabel rightGuide = ScreenSupport.mutedLabel("");
+    private final GameMenuOverlay menu;
     private final ResultOverlay result = new ResultOverlay();
     private final List<KeyStroke> boundKeys = new ArrayList<>();
 
@@ -65,14 +67,18 @@ public class BattleScreen extends JPanel {
         JPanel players = ScreenSupport.transparentPanel(new GridLayout(1, 2, 24, 0));
         players.add(framed(left));
         players.add(framed(right));
+        menu = new GameMenuOverlay(players);
+        menu.setActions(this::hideMenu, () -> {}, () -> {}, () -> {});
         JLayeredPane stage = new JLayeredPane() {
             @Override public void doLayout() {
                 players.setBounds(0, 0, getWidth(), getHeight());
+                menu.setBounds(0, 0, getWidth(), getHeight());
                 result.setBounds(0, 0, getWidth(), getHeight());
             }
         };
         stage.setPreferredSize(new Dimension(840, 600));
         stage.add(players, JLayeredPane.DEFAULT_LAYER);
+        stage.add(menu, JLayeredPane.PALETTE_LAYER);
         stage.add(result, JLayeredPane.MODAL_LAYER);
         add(stage, BorderLayout.CENTER);
 
@@ -169,12 +175,36 @@ public class BattleScreen extends JPanel {
         if (onRelease != null) bind(KeyStroke.getKeyStroke(keyCode, 0, true), onRelease);
     }
 
+    public void setMenuActions(Runnable resume, Runnable settings, Runnable startMenu, Runnable exit) {
+        menu.setActions(resume, settings, startMenu, exit);
+    }
+
+    public void showMenu() {
+        if (!result.isVisible()) menu.open();
+    }
+
+    public void hideMenu() {
+        menu.setVisible(false);
+        showScreen();
+    }
+
+    public boolean isMenuVisible() {
+        return menu.isVisible();
+    }
+
     private void bind(KeyStroke stroke, Runnable action) {
         String name = "battle-key-" + stroke;
         getInputMap(WHEN_IN_FOCUSED_WINDOW).put(stroke, name);
         getActionMap().put(name, new AbstractAction() {
             @Override public void actionPerformed(java.awt.event.ActionEvent event) {
-                if (!result.isVisible()) action.run();
+                if (result.isVisible()) return;
+                if (menu.isVisible()) {
+                    if (stroke.getKeyCode() == KeyEvent.VK_ESCAPE && !stroke.isOnKeyRelease()) {
+                        menu.resume();
+                    }
+                    return;
+                }
+                action.run();
             }
         });
         boundKeys.add(stroke);
@@ -200,6 +230,7 @@ public class BattleScreen extends JPanel {
             String secondaryLabel, Runnable secondary) {
         Objects.requireNonNull(outcome);
         if (!outcome.isFinished()) throw new IllegalArgumentException("끝난 대전의 결과만 표시할 수 있습니다.");
+        menu.setVisible(false);
         result.show(resultTitle(outcome), left.playerName() + " " + left.scoreText() + "점  :  "
                 + right.playerName() + " " + right.scoreText() + "점",
                 primaryLabel, primary, secondaryLabel, secondary);

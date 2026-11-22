@@ -42,6 +42,7 @@ final class GameMenuOverlay extends JPanel {
         this.resume = Objects.requireNonNull(resume); this.settings = Objects.requireNonNull(settings);
         this.startMenu = Objects.requireNonNull(startMenu); this.exit = Objects.requireNonNull(exit);
     }
+    void resume() { resume.run(); }
     void open() {
         capture(); setVisible(true); revalidate(); repaint(); SwingKeyBindings.focus(resumeButton);
     }

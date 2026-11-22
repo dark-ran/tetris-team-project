@@ -37,7 +37,7 @@ import tetris.ui.LanLobbyScreen;
 
 /** LAN lobby and match state. All state transitions run on the Swing event thread. */
 public final class LanLobby extends JPanel implements AutoCloseable {
-    private enum Message { MODE, READY, START, INPUT, BOARDS, RESULT, BACK, PING, PONG }
+    private enum Message { MODE, READY, START, INPUT, BOARDS, RESULT, BACK, PING, PONG, PAUSE, RESUME }
     private enum Phase { IDLE, CONNECTING, LOBBY, PLAYING, RESULT }
     private interface Payload { void write(DataOutputStream out) throws IOException; }
 
@@ -65,6 +65,9 @@ public final class LanLobby extends JPanel implements AutoCloseable {
     private long lastPong;
     private int slowPings;
     private boolean lagging;
+    private boolean localPaused;
+    private boolean peerPaused;
+    private long pausedAt;
     private ServerSocket listener;
     private Socket connectingSocket;
     private LanLink link;
@@ -254,8 +257,15 @@ public final class LanLobby extends JPanel implements AutoCloseable {
         phase = Phase.PLAYING;
         peerBack = false;
         localReady = peerReady = false;
+        localPaused = peerPaused = false;
+        pausedAt = 0;
         app.showBattleScreen(mode, "나", "상대");
-        BattleScreen screen = app.battleScreen();
+        configureBattleControls();
+    }
+
+    private void configureBattleControls() {
+        BattleScreen battle = app.battleScreen();
+        battle.clearKeys();
         var settings = app.snapshot().settings();
         var keys = settings == null ? GameSettings.DEFAULT_KEY_BINDINGS : settings.keyBindings();
         List<String> guide = new ArrayList<>();
@@ -264,18 +274,61 @@ public final class LanLobby extends JPanel implements AutoCloseable {
         String[] labels = {"왼쪽", "오른쪽", "내리기", "회전", "떨어뜨리기"};
         for (int i = 0; i < actions.length; i++) {
             int key = keys.get(actions[i].name());
-            bind(screen, key, actions[i]);
+            bind(battle, key, actions[i]);
             guide.add(KeyEvent.getKeyText(key) + " " + labels[i]);
         }
-        screen.setControlsGuide(String.join(" · ", guide), "");
-        screen.bindKey(KeyEvent.VK_ESCAPE, () -> reset("대전에서 나왔습니다."), null);
-        screen.bindKey(keys.get(GameAction.QUIT.name()), () -> reset("대전에서 나왔습니다."), null);
-        screen.setStatusMessage(lagging ? "네트워크 지연" : null, lagging);
+        guide.add("Esc 메뉴");
+        battle.setControlsGuide(String.join(" · ", guide), "");
+        battle.bindKey(KeyEvent.VK_ESCAPE, this::pauseLocal, null);
+        battle.bindKey(keys.get(GameAction.QUIT.name()), () -> reset("대전에서 나왔습니다."), null);
+        battle.setMenuActions(this::resumeLocal, app::showSettings,
+                this::leaveLobby, () -> { close(); app.exit(); });
+        updateBattleStatus();
+    }
+
+    private boolean paused() {
+        return localPaused || peerPaused;
+    }
+
+    private void pauseLocal() {
+        if (phase != Phase.PLAYING || localPaused) return;
+        if (!paused()) pausedAt = System.nanoTime();
+        localPaused = true;
+        app.battleScreen().showMenu();
+        updateBattleStatus();
+        send(Message.PAUSE, out -> out.writeInt(round));
+    }
+
+    private void resumeLocal() {
+        if (phase != Phase.PLAYING || !localPaused) return;
+        localPaused = false;
+        configureBattleControls();
+        app.battleScreen().hideMenu();
+        finishPauseIfClear();
+        updateBattleStatus();
+        send(Message.RESUME, out -> out.writeInt(round));
+    }
+
+    private void finishPauseIfClear() {
+        if (paused() || pausedAt == 0) return;
+        long elapsed = Math.max(0, System.nanoTime() - pausedAt);
+        pausedAt = 0;
+        deadline += elapsed;
+        for (int i = 0; i < nextDrop.length; i++) nextDrop[i] += elapsed;
+        if (host && phase == Phase.PLAYING) publishBoards(System.nanoTime());
+    }
+
+    private void updateBattleStatus() {
+        if (phase != Phase.PLAYING) return;
+        String message = peerPaused ? "상대 일시정지"
+                : localPaused ? "일시정지"
+                : lagging ? "네트워크 지연" : null;
+        app.battleScreen().setStatusMessage(message, peerPaused || localPaused || lagging);
     }
 
     private void bind(BattleScreen screen, int key, GameAction action) {
         screen.bindKey(key, () -> {
-            if (phase != Phase.PLAYING) return;
+            if (phase != Phase.PLAYING || paused()) return;
             if (host) apply(0, action);
             else send(Message.INPUT, out -> { out.writeInt(round); out.writeByte(action.ordinal()); });
         }, null);
@@ -324,6 +377,8 @@ public final class LanLobby extends JPanel implements AutoCloseable {
 
     private void result(BattleOutcome outcome) {
         phase = Phase.RESULT;
+        localPaused = peerPaused = false;
+        pausedAt = 0;
         BattleOutcome relative = outcome;
         if (!host && outcome == BattleOutcome.PLAYER1_WIN) relative = BattleOutcome.PLAYER2_WIN;
         if (!host && outcome == BattleOutcome.PLAYER2_WIN) relative = BattleOutcome.PLAYER1_WIN;
@@ -349,7 +404,7 @@ public final class LanLobby extends JPanel implements AutoCloseable {
             nextPing = now + TimeUnit.MILLISECONDS.toNanos(500);
             send(Message.PING, out -> out.writeLong(now));
         }
-        if (!host || phase != Phase.PLAYING) return;
+        if (!host || phase != Phase.PLAYING || paused()) return;
         if (mode.isTimeLimited() && now >= deadline) {
             publishBoards(now);
             return;
@@ -394,9 +449,10 @@ public final class LanLobby extends JPanel implements AutoCloseable {
                 }
                 case INPUT -> {
                     require(host);
-                    if (in.readInt() != round || phase != Phase.PLAYING) return;
+                    int inputRound = in.readInt();
                     GameAction action = readEnum(in, GameAction.values());
                     require(action.ordinal() < GameAction.TICK.ordinal());
+                    if (inputRound != round || phase != Phase.PLAYING || paused()) return;
                     apply(1, action);
                 }
                 case BOARDS -> {
@@ -422,6 +478,18 @@ public final class LanLobby extends JPanel implements AutoCloseable {
                     send(Message.PONG, out -> out.writeLong(stamp));
                 }
                 case PONG -> pong(in.readLong());
+                case PAUSE -> {
+                    if (in.readInt() != round || phase != Phase.PLAYING) return;
+                    if (!paused()) pausedAt = System.nanoTime();
+                    peerPaused = true;
+                    updateBattleStatus();
+                }
+                case RESUME -> {
+                    if (in.readInt() != round || phase != Phase.PLAYING) return;
+                    peerPaused = false;
+                    finishPauseIfClear();
+                    updateBattleStatus();
+                }
             }
             require(in.available() == 0);
         } catch (IOException e) {
@@ -435,7 +503,7 @@ public final class LanLobby extends JPanel implements AutoCloseable {
         lastPong = now;
         slowPings = now - stamp > TimeUnit.MILLISECONDS.toNanos(200) ? slowPings + 1 : 0;
         lagging = slowPings >= 3;
-        if (phase == Phase.PLAYING) app.battleScreen().setStatusMessage(lagging ? "네트워크 지연" : null, lagging);
+        updateBattleStatus();
     }
 
     private void send(Message kind, Payload payload) {
@@ -488,7 +556,9 @@ public final class LanLobby extends JPanel implements AutoCloseable {
     @Override public void close() {
         generation++;
         phase = Phase.IDLE;
-        localReady = peerReady = lagging = false;
+        localReady = peerReady = lagging = localPaused = peerPaused = false;
+        pausedAt = 0;
+        if (app.battleScreen().isMenuVisible()) app.battleScreen().hideMenu();
         peerBack = true;
         slowPings = 0;
         timer.stop();
