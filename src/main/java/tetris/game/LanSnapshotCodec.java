@@ -35,6 +35,20 @@ public final class LanSnapshotCodec {
         out.writeLong(snapshot.score());
         out.writeInt(snapshot.level());
         out.writeInt(snapshot.totalClearedRows());
+        LineClearSnapshot clear = snapshot.lineClear();
+        out.writeBoolean(clear != null);
+        if (clear != null) {
+            out.writeInt(clear.sequence());
+            int rowMask = 0;
+            for (int row : clear.rows()) rowMask |= 1 << row;
+            out.writeInt(rowMask);
+            for (int row = 0; row < Board.ROWS; row++) {
+                for (int col = 0; col < Board.COLUMNS; col++) {
+                    out.writeByte(clear.cellAt(row, col));
+                    out.writeByte(clear.itemAt(row, col).ordinal());
+                }
+            }
+        }
     }
 
     public static PlayerSnapshot read(DataInput in, BattleMode mode) throws IOException {
@@ -62,7 +76,28 @@ public final class LanSnapshotCodec {
         int level = in.readInt();
         int cleared = in.readInt();
         if (score < 0 || level < 0 || cleared < 0) throw new IOException("잘못된 점수 정보입니다.");
-        return new PlayerSnapshot(cells, items, current, landing, next, lines, phase, mode, score, level, cleared);
+        LineClearSnapshot clear = readLineClear(in, cleared);
+        return new PlayerSnapshot(cells, items, current, landing, next, lines, phase, mode, score, level, cleared, clear);
+    }
+
+    private static LineClearSnapshot readLineClear(DataInput in, int totalClearedRows) throws IOException {
+        if (!in.readBoolean()) return null;
+        int sequence = bounded(in.readInt(), 1, totalClearedRows);
+        int mask = bounded(in.readInt(), 1, (1 << Board.ROWS) - 1);
+        List<Integer> rows = new ArrayList<>();
+        for (int row = 0; row < Board.ROWS; row++) {
+            if ((mask & (1 << row)) != 0) rows.add(row);
+        }
+        if (rows.size() > sequence) throw new IOException("잘못된 삭제 줄 정보입니다.");
+        int[][] cells = new int[Board.ROWS][Board.COLUMNS];
+        ItemType[][] items = new ItemType[Board.ROWS][Board.COLUMNS];
+        for (int row = 0; row < Board.ROWS; row++) {
+            for (int col = 0; col < Board.COLUMNS; col++) {
+                cells[row][col] = bounded(in.readUnsignedByte(), 0, Board.GARBAGE_CELL);
+                items[row][col] = readEnum(in, ITEM_TYPES);
+            }
+        }
+        return new LineClearSnapshot(sequence, cells, items, rows);
     }
 
     private static void writePiece(DataOutput out, PieceView piece) throws IOException {

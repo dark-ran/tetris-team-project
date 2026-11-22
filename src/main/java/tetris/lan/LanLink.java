@@ -18,7 +18,7 @@ import java.util.function.Consumer;
 final class LanLink implements AutoCloseable {
     static final int PORT = 50555;
     private static final int MAGIC = 0x544C414E;
-    private static final int VERSION = 1;
+    private static final int VERSION = 2;
     private static final int MAX_FRAME = 4096;
     private final Socket socket;
     private final DataInputStream input;

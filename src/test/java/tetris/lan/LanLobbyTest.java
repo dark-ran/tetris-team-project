@@ -9,11 +9,14 @@ import java.awt.Component;
 import java.awt.Container;
 import java.awt.event.ActionEvent;
 import java.awt.event.KeyEvent;
+import java.awt.image.BufferedImage;
 import java.net.InetAddress;
 import java.net.ServerSocket;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.List;
 import java.util.concurrent.Callable;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.FutureTask;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Stream;
@@ -30,6 +33,12 @@ import tetris.app.AppController;
 import tetris.app.AppState;
 import tetris.game.BattleMode;
 import tetris.game.GameEngine;
+import tetris.game.PieceSpawnPolicy;
+import tetris.game.PlayerSession;
+import tetris.game.PlayerSnapshot;
+import tetris.piece.PieceQueue;
+import tetris.piece.PieceType;
+import tetris.piece.Tetromino;
 import tetris.loop.GameLoop;
 import tetris.scoreboard.ScoreBoardService;
 import tetris.scoreboard.ScoreRepository;
@@ -127,6 +136,104 @@ class LanLobbyTest {
                 return null;
             });
         }
+    }
+
+    @Test
+    void lineClearsReachBothBoardsEvenWhenDropsShareOneBroadcastInterval() throws Exception {
+        Peer host = onEdt(() -> openLobby("clear-host", 0));
+        Peer client = null;
+        try {
+            // Deterministic pieces let normal bound keys fill two rows in five drops.
+            var field = LanLobby.class.getDeclaredField("players");
+            field.setAccessible(true);
+            PlayerSession[] players = (PlayerSession[]) field.get(host.lobby);
+            for (int player = 0; player < players.length; player++) {
+                AtomicInteger columns = new AtomicInteger();
+                PieceSpawnPolicy spawn = new PieceSpawnPolicy() {
+                    @Override public int startingRow(Tetromino piece) { return 0; }
+                    @Override public int startingColumn(Tetromino piece) { return columns.getAndIncrement() % 5 * 2; }
+                };
+                players[player] = new PlayerSession(new GameEngine(
+                        () -> PieceQueue.generatedBy(() -> new Tetromino(PieceType.O), 1), spawn));
+            }
+            onEdt(() -> {
+                component(host.lobby, JComboBox.class).setSelectedItem("127.0.0.1");
+                button(host.lobby, "서버 열기").doClick(0);
+                return null;
+            });
+            await(() -> text(host.lobby).contains("서버 대기 중"));
+            int port = onEdt(() -> {
+                String label = text(host.lobby);
+                return Integer.parseInt(label.substring(label.lastIndexOf("TCP ") + 4).trim());
+            });
+            Peer guest = onEdt(() -> openLobby("clear-guest", port));
+            client = guest;
+            connect(guest, "127.0.0.1");
+            await(() -> isGameStartAvailable(host) && isGameStartAvailable(guest));
+            startBoth(host, guest);
+            onEdt(() -> {
+                drop(host, 5);
+                return null;
+            });
+            await(() -> boardSnapshot(guest, "상대 보드") != null
+                    && boardSnapshot(guest, "상대 보드").totalClearedRows() == 2);
+            onEdt(() -> {
+                assertEquals(List.of(18, 19), boardSnapshot(guest, "상대 보드").lineClear().rows());
+                assertEquals(boardPixel(host, "나 보드"), boardPixel(guest, "상대 보드"));
+                // Rendering the highlight must differ from the same board after cancelling the timer.
+                JComponent board = board(guest, "상대 보드");
+                int highlighted = boardPixel(guest, "상대 보드");
+                board.removeNotify();
+                assertTrue(highlighted != boardPixel(guest, "상대 보드"));
+                drop(guest, 5);
+                return null;
+            });
+            await(() -> boardSnapshot(host, "상대 보드").totalClearedRows() == 2);
+            onEdt(() -> {
+                assertEquals(2, boardSnapshot(host, "상대 보드").lineClear().sequence());
+                assertEquals(boardPixel(host, "상대 보드"), boardPixel(guest, "나 보드"));
+                return null;
+            });
+        } finally {
+            Peer guest = client;
+            onEdt(() -> {
+                host.lobby.close();
+                host.app.exit();
+                if (guest != null) { guest.lobby.close(); guest.app.exit(); }
+                return null;
+            });
+        }
+    }
+
+    private static void drop(Peer peer, int count) {
+        var screen = peer.app.battleScreen();
+        Object name = screen.getInputMap(JComponent.WHEN_IN_FOCUSED_WINDOW)
+                .get(KeyStroke.getKeyStroke(KeyEvent.VK_SPACE, 0));
+        for (int i = 0; i < count; i++) {
+            screen.getActionMap().get(name).actionPerformed(new ActionEvent(screen, 0, "drop"));
+        }
+    }
+
+    private static JComponent board(Peer peer, String name) {
+        return tree(peer.app.battleScreen()).filter(JComponent.class::isInstance)
+                .map(JComponent.class::cast).filter(part -> part.getAccessibleContext() != null
+                        && name.equals(part.getAccessibleContext().getAccessibleName())).findFirst().orElseThrow();
+    }
+
+    private static PlayerSnapshot boardSnapshot(Peer peer, String name) throws Exception {
+        JComponent board = board(peer, name);
+        var method = board.getClass().getDeclaredMethod("snapshot");
+        method.setAccessible(true);
+        return (PlayerSnapshot) method.invoke(board);
+    }
+
+    private static int boardPixel(Peer peer, String name) {
+        JComponent board = board(peer, name);
+        board.setSize(272, 532);
+        BufferedImage image = new BufferedImage(272, 532, BufferedImage.TYPE_INT_ARGB);
+        var graphics = image.createGraphics();
+        try { board.paint(graphics); } finally { graphics.dispose(); }
+        return image.getRGB(6 + 4 * 26 + 4, 6 + 19 * 26 + 4);
     }
 
     @Test

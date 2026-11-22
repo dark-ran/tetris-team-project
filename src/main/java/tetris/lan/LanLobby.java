@@ -287,9 +287,9 @@ public final class LanLobby extends JPanel implements AutoCloseable {
             publishBoards(now);
             return;
         }
-        players[player].apply(action);
+        var result = players[player].apply(action);
         dirty = true;
-        if (now >= nextReport || players[player].isGameOver()) publishBoards(now);
+        if (result.clearedRows() > 0 || now >= nextReport || players[player].isGameOver()) publishBoards(now);
     }
 
     private void publishBoards(long now) {

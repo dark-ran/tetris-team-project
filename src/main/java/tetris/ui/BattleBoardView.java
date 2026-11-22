@@ -8,10 +8,13 @@ import java.awt.Graphics;
 import java.awt.Graphics2D;
 import java.awt.Rectangle;
 import java.awt.RenderingHints;
+import java.awt.event.HierarchyEvent;
 import java.util.Objects;
 import javax.swing.JPanel;
+import javax.swing.Timer;
 import tetris.board.Board;
 import tetris.game.PlayerSnapshot;
+import tetris.game.LineClearSnapshot;
 import tetris.piece.PieceType;
 import tetris.settings.ColorVisionMode;
 
@@ -25,10 +28,17 @@ final class BattleBoardView extends JPanel {
     private static final int BORDER_SIZE = 3;
 
     private PlayerSnapshot snapshot;
+    private LineClearSnapshot flash;
+    private int lastClearSequence;
+    private final Timer flashTimer = new Timer(350, event -> clearFlash());
     private ColorVisionMode mode = ColorVisionMode.NORMAL;
     private boolean patterns;
 
     BattleBoardView() {
+        flashTimer.setRepeats(false);
+        addHierarchyListener(event -> {
+            if ((event.getChangeFlags() & HierarchyEvent.SHOWING_CHANGED) != 0 && !isShowing()) clearFlash();
+        });
         setOpaque(false);
         setFocusable(true);
         setPreferredSize(new Dimension(Board.COLUMNS * MAX_CELL_SIZE + PADDING * 2,
@@ -39,8 +49,28 @@ final class BattleBoardView extends JPanel {
     }
 
     void render(PlayerSnapshot next) {
+        if (next == null || (snapshot != null && next.totalClearedRows() < snapshot.totalClearedRows())) {
+            clearFlash();
+            lastClearSequence = 0;
+        }
+        if (next != null && next.lineClear() != null && next.lineClear().sequence() > lastClearSequence) {
+            flash = next.lineClear();
+            lastClearSequence = flash.sequence();
+            flashTimer.restart();
+        }
         snapshot = next;
         repaint();
+    }
+
+    private void clearFlash() {
+        flashTimer.stop();
+        flash = null;
+        repaint();
+    }
+
+    @Override public void removeNotify() {
+        clearFlash();
+        super.removeNotify();
     }
 
     PlayerSnapshot snapshot() {
@@ -91,15 +121,22 @@ final class BattleBoardView extends JPanel {
         int size = board.cell - 4;
         for (int row = 0; row < Board.ROWS; row++) {
             for (int column = 0; column < Board.COLUMNS; column++) {
-                int value = snapshot.cellAt(row, column);
+                int value = flash == null ? snapshot.cellAt(row, column) : flash.cellAt(row, column);
                 if (value == Board.EMPTY_CELL) continue;
                 int x = board.cellX(column) + 2, y = board.cellY(row) + 2;
-                if (value == Board.GARBAGE_CELL) {
+                if (flash != null && flash.rows().contains(row)) {
+                    Color base = value == Board.GARBAGE_CELL ? GARBAGE
+                            : PieceStyle.colorFor(PieceType.fromCellValue(value), mode);
+                    g.setColor(new Color(Math.min(255, base.getRed() + 70),
+                            Math.min(255, base.getGreen() + 70), Math.min(255, base.getBlue() + 70)));
+                    g.fillRect(x, y, size, size);
+                } else if (value == Board.GARBAGE_CELL) {
                     paintGarbageCell(g, x, y, size);
                 } else {
                     PieceStyle.paintCell(g, PieceType.fromCellValue(value), x, y, size, mode, patterns);
-                    PieceStyle.paintItem(g, snapshot.itemAt(row, column), x, y, size);
                 }
+                PieceStyle.paintItem(g, flash == null ? snapshot.itemAt(row, column) : flash.itemAt(row, column),
+                        x, y, size);
             }
         }
     }
@@ -110,7 +147,7 @@ final class BattleBoardView extends JPanel {
         int size = board.cell - 4;
         int[][] cells = piece.cells();
         boolean[] items = piece.itemCells();
-        if (snapshot.landingRow() != piece.row()) {
+        if (flash == null && snapshot.landingRow() != piece.row()) {
             for (int[] cell : cells) {
                 int row = snapshot.landingRow() + cell[0], column = piece.column() + cell[1];
                 if (onBoard(row, column)) {
