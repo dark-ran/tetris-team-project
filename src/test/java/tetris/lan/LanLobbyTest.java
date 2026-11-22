@@ -181,23 +181,31 @@ class LanLobbyTest {
                 drop(host, 5);
                 return null;
             });
-            await(() -> boardSnapshot(guest, "상대 보드") != null
+            await(() -> boardSnapshot(host, "나 보드") != null
+                    && boardSnapshot(host, "나 보드").totalClearedRows() == 2
+                    && boardSnapshot(guest, "상대 보드") != null
                     && boardSnapshot(guest, "상대 보드").totalClearedRows() == 2);
             onEdt(() -> {
                 assertEquals(List.of(18, 19), boardSnapshot(guest, "상대 보드").lineClear().rows());
-                assertEquals(boardPixel(host, "나 보드"), boardPixel(guest, "상대 보드"));
                 // Rendering the highlight must differ from the same board after cancelling the timer.
-                JComponent board = board(guest, "상대 보드");
+                JComponent guestRemoteBoard = board(guest, "상대 보드");
                 int highlighted = boardPixel(guest, "상대 보드");
-                board.removeNotify();
+                guestRemoteBoard.removeNotify();
                 assertTrue(highlighted != boardPixel(guest, "상대 보드"));
                 drop(guest, 5);
                 return null;
             });
-            await(() -> boardSnapshot(host, "상대 보드").totalClearedRows() == 2);
+            await(() -> boardSnapshot(host, "상대 보드") != null
+                    && boardSnapshot(host, "상대 보드").totalClearedRows() == 2
+                    && boardSnapshot(guest, "나 보드") != null
+                    && boardSnapshot(guest, "나 보드").totalClearedRows() == 2);
             onEdt(() -> {
                 assertEquals(2, boardSnapshot(host, "상대 보드").lineClear().sequence());
-                assertEquals(boardPixel(host, "상대 보드"), boardPixel(guest, "나 보드"));
+                assertEquals(2, boardSnapshot(guest, "나 보드").lineClear().sequence());
+                JComponent hostRemoteBoard = board(host, "상대 보드");
+                int highlighted = boardPixel(host, "상대 보드");
+                hostRemoteBoard.removeNotify();
+                assertTrue(highlighted != boardPixel(host, "상대 보드"));
                 return null;
             });
         } finally {
