@@ -10,7 +10,7 @@ import tetris.piece.Tetromino;
 
 /**
  * 대전 화면에서 한 플레이어를 그리는 데 필요한 정보만 담은 사본.
- * 로컬 대전 화면이 그대로 그리고, P2P 대전에서는 그대로 직렬화해 상대에게 보낸다.
+ * 로컬 대전 화면이 그대로 그리고, LAN 대전에서는 필요한 필드를 전용 메시지로 전송한다.
  *
  * <p>칸 좌표는 모두 {행, 열}이다. 보드 칸 값은 {@link Board#EMPTY_CELL}, 블록 종류 값(1~8),
  * 공격 줄 {@link Board#GARBAGE_CELL} 중 하나이다.</p>
@@ -30,7 +30,7 @@ public final class PlayerSnapshot implements Serializable {
     private final int level;
     private final int totalClearedRows;
 
-    private PlayerSnapshot(int[][] boardCells, ItemType[][] boardItems, PieceView currentPiece,
+    PlayerSnapshot(int[][] boardCells, ItemType[][] boardItems, PieceView currentPiece,
             int landingRow, PieceView nextPiece, List<AttackLine> pendingAttackLines, GamePhase phase,
             BattleMode mode, long score, int level, int totalClearedRows) {
         this.boardCells = boardCells;
