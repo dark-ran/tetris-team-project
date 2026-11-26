@@ -1,6 +1,7 @@
 package tetris.ui;
 
 import java.awt.Component;
+import java.awt.Font;
 import java.awt.KeyboardFocusManager;
 import java.awt.event.ActionEvent;
 import java.awt.event.KeyEvent;
@@ -12,18 +13,32 @@ import javax.swing.KeyStroke;
 import javax.swing.SwingUtilities;
 
 /** 메뉴 이동과 화면 전환용 Swing 키 바인딩을 한곳에서 관리한다. */
-final class SwingKeyBindings {
+public final class SwingKeyBindings {
     private SwingKeyBindings() {
     }
 
-    static String keyText(int keyCode) {
+    /**
+     * 화면에 표시할 키 이름. macOS는 Space와 Enter를 ␣, ⏎ 같은 기호로 돌려주는데
+     * 번들 글꼴에는 없는 글자이므로 모든 운영체제에서 같은 영문 이름을 쓴다.
+     * 그 밖에 글꼴이 그릴 수 없는 이름은 키 코드로 대신한다.
+     */
+    public static String keyText(int keyCode) {
         return switch (keyCode) {
             case KeyEvent.VK_LEFT -> "←";
             case KeyEvent.VK_RIGHT -> "→";
             case KeyEvent.VK_UP -> "↑";
             case KeyEvent.VK_DOWN -> "↓";
-            default -> KeyEvent.getKeyText(keyCode);
+            case KeyEvent.VK_SPACE -> "Space";
+            case KeyEvent.VK_ENTER -> "Enter";
+            case KeyEvent.VK_BACK_SPACE -> "Backspace";
+            case KeyEvent.VK_TAB -> "Tab";
+            case KeyEvent.VK_DELETE -> "Delete";
+            default -> displayable(KeyEvent.getKeyText(keyCode), keyCode);
         };
+    }
+
+    private static String displayable(String text, int keyCode) {
+        return AppTheme.font(Font.PLAIN, 14f).canDisplayUpTo(text) < 0 ? text : "Key " + keyCode;
     }
 
     static void activateButtonWithEnter(JButton button) {

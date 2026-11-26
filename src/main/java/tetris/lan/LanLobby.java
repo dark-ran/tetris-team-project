@@ -34,6 +34,7 @@ import tetris.settings.GameSettings;
 import tetris.settings.SettingsRepository;
 import tetris.ui.BattleScreen;
 import tetris.ui.LanLobbyScreen;
+import tetris.ui.SwingKeyBindings;
 
 /** LAN lobby and match state. All state transitions run on the Swing event thread. */
 public final class LanLobby extends JPanel implements AutoCloseable {
@@ -275,7 +276,7 @@ public final class LanLobby extends JPanel implements AutoCloseable {
         for (int i = 0; i < actions.length; i++) {
             int key = keys.get(actions[i].name());
             bind(battle, key, actions[i]);
-            guide.add(KeyEvent.getKeyText(key) + " " + labels[i]);
+            guide.add(SwingKeyBindings.keyText(key) + " " + labels[i]);
         }
         guide.add("Esc 메뉴");
         battle.setControlsGuide(String.join(" · ", guide), "");
