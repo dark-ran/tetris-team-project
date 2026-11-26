@@ -17,8 +17,20 @@ import tetris.game.Difficulty;
 public class SettingsScreen extends JPanel {
     static { AppTheme.install(); }
     public record Values(int preset, ColorVisionMode colorVisionMode, boolean patternsEnabled,
-            Map<String, Integer> keys, Difficulty difficulty) {
-        public Values { Objects.requireNonNull(colorVisionMode); Objects.requireNonNull(difficulty); keys = Map.copyOf(keys); }
+            Map<String, Integer> keys, Difficulty difficulty,
+            Map<String, Integer> p1Keys, Map<String, Integer> p2Keys) {
+        public Values {
+            Objects.requireNonNull(colorVisionMode);
+            Objects.requireNonNull(difficulty);
+            keys = Map.copyOf(keys);
+            p1Keys = Map.copyOf(p1Keys);
+            p2Keys = Map.copyOf(p2Keys);
+        }
+        public Values(int preset, ColorVisionMode colorVisionMode, boolean patternsEnabled,
+                Map<String, Integer> keys, Difficulty difficulty) {
+            this(preset, colorVisionMode, patternsEnabled, keys, difficulty,
+                    GameSettings.DEFAULT_P1_KEY_BINDINGS, GameSettings.DEFAULT_P2_KEY_BINDINGS);
+        }
         public Values(int preset, ColorVisionMode colorVisionMode, boolean patternsEnabled, Map<String, Integer> keys) {
             this(preset, colorVisionMode, patternsEnabled, keys, Difficulty.NORMAL);
         }
@@ -35,6 +47,13 @@ public class SettingsScreen extends JPanel {
     private final JLabel patternHint = ScreenSupport.mutedLabel(" ");
     private final Map<String, Integer> keys = new LinkedHashMap<>();
     private final Map<String, JButton> keyButtons = new LinkedHashMap<>();
+
+    // P1/P2 대전 키 설정
+    private final Map<String, Integer> p1Keys = new LinkedHashMap<>(GameSettings.DEFAULT_P1_KEY_BINDINGS);
+    private final Map<String, Integer> p2Keys = new LinkedHashMap<>(GameSettings.DEFAULT_P2_KEY_BINDINGS);
+    private final Map<String, JButton> p1KeyButtons = new LinkedHashMap<>();
+    private final Map<String, JButton> p2KeyButtons = new LinkedHashMap<>();
+
     private final JLabel feedback = new JLabel(" ");
     private final JButton saveButton, restoreButton, resetButton, backButton;
     private Consumer<Values> onSave;
@@ -77,13 +96,34 @@ public class SettingsScreen extends JPanel {
             });
             keyButtons.put(action, key); keyFields.add(new JLabel(names.get(action))); keyFields.add(key);
         }
+
+        // 대전 모드 P1/P2 키 설정 영역
+        JPanel battleFields = ScreenSupport.transparentPanel(new GridLayout(0, 3, 18, 8));
+        battleFields.add(new JLabel("조작"));
+        battleFields.add(new JLabel("P1"));
+        battleFields.add(new JLabel("P2"));
+
+        for (String action : GameSettings.DEFAULT_P1_KEY_BINDINGS.keySet()) {
+            battleFields.add(new JLabel(names.get(action)));
+            battleFields.add(createBattleKeyButton(action, p1Keys, p1KeyButtons));
+            battleFields.add(createBattleKeyButton(action, p2Keys, p2KeyButtons));
+        }
+
+        JPanel battleSettings = ScreenSupport.transparentPanel(new BorderLayout(0, 8));
+        battleSettings.add(ScreenSupport.sectionTitle("대전 모드 키 설정"), BorderLayout.NORTH);
+        battleSettings.add(battleFields, BorderLayout.CENTER);
+
+        JPanel keySettings = ScreenSupport.transparentPanel(new BorderLayout(0, 18));
+        keySettings.add(keyFields, BorderLayout.NORTH);
+        keySettings.add(battleSettings, BorderLayout.CENTER);
+
         JPanel frame = ScreenSupport.framedPanel(new BorderLayout(0, 18));
         JPanel editor = ScreenSupport.transparentPanel(new BorderLayout(0, 18)); editor.add(fields, BorderLayout.NORTH);
         JPanel appearance = ScreenSupport.transparentPanel(new BorderLayout(0, 12));
         appearance.add(ScreenSupport.sectionTitle("7종 블록 미리보기"), BorderLayout.NORTH);
         previews.setPreferredSize(new Dimension(560, 80)); appearance.add(previews, BorderLayout.CENTER);
         appearance.add(patternHint, BorderLayout.SOUTH); editor.add(appearance, BorderLayout.CENTER);
-        editor.add(keyFields, BorderLayout.SOUTH); frame.add(editor, BorderLayout.NORTH);
+        editor.add(keySettings, BorderLayout.SOUTH); frame.add(editor, BorderLayout.NORTH);
         feedback.setForeground(AppTheme.YELLOW);
         JScrollPane scroll = new JScrollPane(frame, JScrollPane.VERTICAL_SCROLLBAR_AS_NEEDED, JScrollPane.HORIZONTAL_SCROLLBAR_NEVER);
         scroll.setBorder(BorderFactory.createEmptyBorder()); scroll.getVerticalScrollBar().setUnitIncrement(20);
@@ -99,11 +139,60 @@ public class SettingsScreen extends JPanel {
         SwingKeyBindings.backOnEscape(this, onBack);
         refreshPreviews();
     }
+
+    // 대전 모드 키 설정 버튼 생성
+    private JButton createBattleKeyButton(String action, Map<String, Integer> bindings,
+            Map<String, JButton> buttons) {
+        boolean[] capturing = {false};
+        JButton key = ScreenSupport.button(SwingKeyBindings.keyText(bindings.get(action)), () -> {
+            capturing[0] = true;
+            feedback.setText("지정할 키를 누르세요. Esc는 사용할 수 없습니다.");
+        });
+
+        key.addActionListener(event -> key.requestFocusInWindow());
+
+        key.addKeyListener(new KeyAdapter() {
+            @Override public void keyPressed(KeyEvent event) {
+                if (!capturing[0]) return;
+                capturing[0] = false;
+                event.consume();
+
+                if (event.getKeyCode() == KeyEvent.VK_ESCAPE
+                        || event.getKeyCode() == KeyEvent.VK_UNDEFINED) {
+                    feedback.setText("사용할 수 없는 키입니다.");
+                    return;
+                }
+
+                bindings.put(action, event.getKeyCode());
+                key.setText(SwingKeyBindings.keyText(event.getKeyCode()));
+                feedback.setText("저장하면 새 조작 키가 적용됩니다.");
+            }
+        });
+
+        key.addFocusListener(new FocusAdapter() {
+            @Override public void focusLost(FocusEvent event) {
+                capturing[0] = false;
+            }
+        });
+
+        buttons.put(action, key);
+        return key;
+    }
+
     public void setOnSaveValues(Consumer<Values> callback) { onSave = Objects.requireNonNull(callback); saveButton.setEnabled(true); }
     public void setOnRestoreDefaults(Runnable callback) { onRestore = Objects.requireNonNull(callback); restoreButton.setEnabled(true); }
     public void setOnResetScores(Runnable callback) { onReset = Objects.requireNonNull(callback); resetButton.setEnabled(true); }
     public void setOnWindowSizePreview(IntPredicate callback) { onWindowSizePreview = Objects.requireNonNull(callback); }
-    public Values values() { return new Values(preset.getSelectedIndex(), (ColorVisionMode) colorMode.getSelectedItem(), patterns.isSelected(), keys, (Difficulty) difficulty.getSelectedItem()); }
+
+    public Values values() {
+        GameSettings.normalizeBattleKeyBindings(p1Keys, GameSettings.DEFAULT_P1_KEY_BINDINGS);
+        GameSettings.normalizeBattleKeyBindings(p2Keys, GameSettings.DEFAULT_P2_KEY_BINDINGS);
+        GameSettings.validateBattleKeyBindings(p1Keys, p2Keys);
+
+        return new Values(preset.getSelectedIndex(), (ColorVisionMode) colorMode.getSelectedItem(),
+                patterns.isSelected(), keys, (Difficulty) difficulty.getSelectedItem(), p1Keys, p2Keys);
+    }
+
     public void showValues(Values current) {
         refreshing = true;
         try {
@@ -111,11 +200,33 @@ public class SettingsScreen extends JPanel {
             colorMode.setSelectedItem(current.colorVisionMode()); patterns.setSelected(current.patternsEnabled());
             difficulty.setSelectedItem(current.difficulty());
             current.keys().forEach((action, code) -> { if (keyButtons.containsKey(action)) { keys.put(action, code); keyButtons.get(action).setText(SwingKeyBindings.keyText(code)); } });
+
+            // 저장된 P1/P2 키 설정 표시
+            current.p1Keys().forEach((action, code) -> {
+                if (p1KeyButtons.containsKey(action)) {
+                    p1Keys.put(action, code);
+                    p1KeyButtons.get(action).setText(SwingKeyBindings.keyText(code));
+                }
+            });
+
+            current.p2Keys().forEach((action, code) -> {
+                if (p2KeyButtons.containsKey(action)) {
+                    p2Keys.put(action, code);
+                    p2KeyButtons.get(action).setText(SwingKeyBindings.keyText(code));
+                }
+            });
+
             feedback.setText(" ");
         } finally { refreshing = false; }
         refreshPreviews();
     }
-    public void showSettings(GameSettings current) { showValues(new Values(current.windowSizePreset(), current.colorVisionMode(), current.piecePatternsEnabled(), current.keyBindings(), current.difficulty())); }
+
+    public void showSettings(GameSettings current) {
+        showValues(new Values(current.windowSizePreset(), current.colorVisionMode(),
+                current.piecePatternsEnabled(), current.keyBindings(), current.difficulty(),
+                current.p1KeyBindings(), current.p2KeyBindings()));
+    }
+
     public void showMessage(String message) { feedback.setText(message == null ? " " : message); }
     private void runSafely(Runnable action) {
         feedback.setText(" ");

@@ -170,7 +170,7 @@ public class AppController {
             settingsScreen.setOnSaveValues(values -> updateSettings(
                     new GameSettings(values.preset(), values.colorVisionMode(),
                             values.patternsEnabled(), values.keys(),
-                            values.difficulty())));
+                            values.difficulty(), values.p1Keys(), values.p2Keys())));
 
             settingsScreen.setOnWindowSizePreview(this::previewWindowSize);
             settingsScreen.setOnRestoreDefaults(this::restoreDefaultsFromSettingsScreen);

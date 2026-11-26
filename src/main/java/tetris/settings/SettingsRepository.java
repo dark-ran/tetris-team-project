@@ -69,6 +69,16 @@ public class SettingsRepository {
             properties.setProperty("key." + entry.getKey(), String.valueOf(entry.getValue()));
         }
 
+        // P1 대전 키 설정 저장
+        for (Map.Entry<String, Integer> entry : settings.p1KeyBindings().entrySet()) {
+            properties.setProperty("battle.p1.key." + entry.getKey(), String.valueOf(entry.getValue()));
+        }
+
+        // P2 대전 키 설정 저장
+        for (Map.Entry<String, Integer> entry : settings.p2KeyBindings().entrySet()) {
+            properties.setProperty("battle.p2.key." + entry.getKey(), String.valueOf(entry.getValue()));
+        }
+
         Path temporary = null;
         try {
             Path target = filePath.toAbsolutePath();
@@ -139,6 +149,47 @@ public class SettingsRepository {
         } catch (IllegalArgumentException ignored) {
             // An unknown/new difficulty must not discard the user's other saved settings.
         }
-        return new GameSettings(preset, mode, patterns, keyBindings, difficulty);
+
+        // P1/P2 대전 키 설정 불러오기
+        Map<String, Integer> p1KeyBindings = loadBattleKeyBindings(
+                properties, "battle.p1.key.", GameSettings.DEFAULT_P1_KEY_BINDINGS);
+
+        Map<String, Integer> p2KeyBindings = loadBattleKeyBindings(
+                properties, "battle.p2.key.", GameSettings.DEFAULT_P2_KEY_BINDINGS);
+
+        // 대전 키 설정 검증
+        try {
+            p1KeyBindings = GameSettings.normalizeBattleKeyBindings(
+                    p1KeyBindings, GameSettings.DEFAULT_P1_KEY_BINDINGS);
+
+            p2KeyBindings = GameSettings.normalizeBattleKeyBindings(
+                    p2KeyBindings, GameSettings.DEFAULT_P2_KEY_BINDINGS);
+
+            GameSettings.validateBattleKeyBindings(p1KeyBindings, p2KeyBindings);
+        } catch (IllegalArgumentException e) {
+            p1KeyBindings = GameSettings.DEFAULT_P1_KEY_BINDINGS;
+            p2KeyBindings = GameSettings.DEFAULT_P2_KEY_BINDINGS;
+        }
+
+        return new GameSettings(preset, mode, patterns, keyBindings, difficulty,
+                p1KeyBindings, p2KeyBindings);
+    }
+
+    // 플레이어별 대전 키 설정 불러오기
+    private Map<String, Integer> loadBattleKeyBindings(
+            Properties properties, String prefix, Map<String, Integer> defaults) {
+        Map<String, Integer> bindings = new HashMap<>(defaults);
+
+        for (String actionName : defaults.keySet()) {
+            String value = properties.getProperty(prefix + actionName);
+            if (value != null) {
+                try {
+                    bindings.put(actionName, Integer.parseInt(value.trim()));
+                } catch (NumberFormatException ignored) {
+                }
+            }
+        }
+
+        return bindings;
     }
 }
