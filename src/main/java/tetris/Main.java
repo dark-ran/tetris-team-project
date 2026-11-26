@@ -7,6 +7,8 @@ import javax.swing.JFrame;
 import javax.swing.SwingUtilities;
 import tetris.app.AppController;
 import tetris.ui.AppTheme;
+import tetris.app.BattleController;
+import tetris.settings.SettingsService;
 
 /** Swing 창의 생성과 종료를 연결하는 진입점. */
 public class Main {
@@ -14,11 +16,19 @@ public class Main {
         AppTheme.install();
         SwingUtilities.invokeLater(() -> {
             JFrame window = new JFrame("Tetris");
-            AppController app = new AppController(window::dispose);
+            SettingsService settingsService = new SettingsService();
+            AppController app = new AppController(window::dispose,
+                new tetris.game.GameEngine(), null, null, null,
+                new tetris.scoreboard.ScoreBoardService(), settingsService, null);
+
+            // 로컬 2인 대전 연결
+            BattleController battleController = new BattleController(app, settingsService);
+            
             window.setDefaultCloseOperation(JFrame.DO_NOTHING_ON_CLOSE);
             window.addWindowListener(new WindowAdapter() {
                 @Override
                 public void windowClosing(WindowEvent event) {
+                    battleController.stop();
                     app.exit();
                 }
             });

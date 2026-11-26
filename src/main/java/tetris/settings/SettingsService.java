@@ -2,6 +2,7 @@ package tetris.settings;
 
 import java.awt.Dimension;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.function.Consumer;
@@ -39,6 +40,21 @@ public class SettingsService {
 
     public void restoreDefaults() {
         update(GameSettings.defaultSettings());
+    }
+
+    // P1 대전 키 설정 변경
+    public void setP1KeyBindings(Map<String, Integer> bindings) {
+        update(currentSettings.withP1KeyBindings(bindings));
+    }
+
+    // P2 대전 키 설정 변경
+    public void setP2KeyBindings(Map<String, Integer> bindings) {
+        update(currentSettings.withP2KeyBindings(bindings));
+    }
+
+    // P1/P2 대전 키 설정 변경
+    public void setBattleKeyBindings(Map<String, Integer> p1, Map<String, Integer> p2) {
+        update(currentSettings.withBattleKeyBindings(p1, p2));
     }
 
     /**
@@ -129,5 +145,15 @@ public class SettingsService {
         }
 
         GameSettings.normalizeKeyBindings(settings.keyBindings());
+
+        // P1/P2 대전 키 설정 검증
+        GameSettings.normalizeBattleKeyBindings(
+                settings.p1KeyBindings(), GameSettings.DEFAULT_P1_KEY_BINDINGS);
+
+        GameSettings.normalizeBattleKeyBindings(
+                settings.p2KeyBindings(), GameSettings.DEFAULT_P2_KEY_BINDINGS);
+
+        GameSettings.validateBattleKeyBindings(
+                settings.p1KeyBindings(), settings.p2KeyBindings());
     }
 }

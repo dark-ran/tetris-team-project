@@ -28,6 +28,10 @@ public final class GameSettings {
 
     public static final Map<String, Integer> DEFAULT_KEY_BINDINGS;
 
+    // 대전 모드 기본 키 설정
+    public static final Map<String, Integer> DEFAULT_P1_KEY_BINDINGS;
+    public static final Map<String, Integer> DEFAULT_P2_KEY_BINDINGS;
+
     static {
         Map<String, Integer> defaults = new LinkedHashMap<>();
         defaults.put(GameAction.LEFT.name(), KeyEvent.VK_LEFT);
@@ -37,6 +41,24 @@ public final class GameSettings {
         defaults.put(GameAction.HARD_DROP.name(), KeyEvent.VK_SPACE);
         defaults.put(GameAction.QUIT.name(), KeyEvent.VK_Q);
         DEFAULT_KEY_BINDINGS = Collections.unmodifiableMap(defaults);
+
+        // P1 기본 키
+        Map<String, Integer> p1 = new LinkedHashMap<>();
+        p1.put(GameAction.LEFT.name(), KeyEvent.VK_A);
+        p1.put(GameAction.RIGHT.name(), KeyEvent.VK_D);
+        p1.put(GameAction.DOWN.name(), KeyEvent.VK_S);
+        p1.put(GameAction.ROTATE_CLOCKWISE.name(), KeyEvent.VK_W);
+        p1.put(GameAction.HARD_DROP.name(), KeyEvent.VK_F);
+        DEFAULT_P1_KEY_BINDINGS = Collections.unmodifiableMap(p1);
+
+        // P2 기본 키
+        Map<String, Integer> p2 = new LinkedHashMap<>();
+        p2.put(GameAction.LEFT.name(), KeyEvent.VK_LEFT);
+        p2.put(GameAction.RIGHT.name(), KeyEvent.VK_RIGHT);
+        p2.put(GameAction.DOWN.name(), KeyEvent.VK_DOWN);
+        p2.put(GameAction.ROTATE_CLOCKWISE.name(), KeyEvent.VK_UP);
+        p2.put(GameAction.HARD_DROP.name(), KeyEvent.VK_ENTER);
+        DEFAULT_P2_KEY_BINDINGS = Collections.unmodifiableMap(p2);
     }
 
     private final int windowSizePreset;
@@ -44,6 +66,9 @@ public final class GameSettings {
     private final boolean piecePatternsEnabled;
     private final Map<String, Integer> keyBindings;
     private final Difficulty difficulty;
+
+    private final Map<String, Integer> p1KeyBindings;
+    private final Map<String, Integer> p2KeyBindings;
 
     /**
      * Creates default game settings.
@@ -71,6 +96,14 @@ public final class GameSettings {
 
     public GameSettings(int windowSizePreset, ColorVisionMode mode, boolean patterns,
             Map<String, Integer> keyBindings, Difficulty difficulty) {
+        this(windowSizePreset, mode, patterns, keyBindings, difficulty,
+                DEFAULT_P1_KEY_BINDINGS, DEFAULT_P2_KEY_BINDINGS);
+    }
+
+    // 대전 모드 키 설정을 포함한 생성자
+    public GameSettings(int windowSizePreset, ColorVisionMode mode, boolean patterns,
+            Map<String, Integer> keyBindings, Difficulty difficulty,
+            Map<String, Integer> p1KeyBindings, Map<String, Integer> p2KeyBindings) {
         if (!isValidPreset(windowSizePreset)) {
             throw new IllegalArgumentException("Invalid window size preset: " + windowSizePreset
                     + ". Expected between " + PRESET_SMALL + " and " + PRESET_LARGE);
@@ -82,20 +115,31 @@ public final class GameSettings {
         this.piecePatternsEnabled = patterns;
         this.keyBindings = normalizeKeyBindings(keyBindings);
         this.difficulty = Objects.requireNonNull(difficulty, "difficulty must not be null");
+
+        this.p1KeyBindings = normalizeBattleKeyBindings(p1KeyBindings, DEFAULT_P1_KEY_BINDINGS);
+        this.p2KeyBindings = normalizeBattleKeyBindings(p2KeyBindings, DEFAULT_P2_KEY_BINDINGS);
+        validateBattleKeyBindings(this.p1KeyBindings, this.p2KeyBindings);
     }
 
     public Difficulty difficulty() { return difficulty; }
 
     public GameSettings withDifficulty(Difficulty next) {
-        return new GameSettings(windowSizePreset, colorVisionMode, piecePatternsEnabled, keyBindings, next);
+        return new GameSettings(windowSizePreset, colorVisionMode, piecePatternsEnabled, keyBindings, next,
+                p1KeyBindings, p2KeyBindings);
     }
 
     /** Completes partial bindings before validating; Esc always opens the game menu. */
     public static Map<String, Integer> normalizeKeyBindings(Map<String, Integer> bindings) {
+        return normalizeBattleKeyBindings(bindings, DEFAULT_KEY_BINDINGS);
+    }
+
+    // 싱글 플레이와 대전 모드의 키 설정 검증
+    public static Map<String, Integer> normalizeBattleKeyBindings(
+            Map<String, Integer> bindings, Map<String, Integer> defaults) {
         Objects.requireNonNull(bindings, "keyBindings must not be null");
-        Map<String, Integer> complete = new LinkedHashMap<>(DEFAULT_KEY_BINDINGS);
+        Map<String, Integer> complete = new LinkedHashMap<>(defaults);
         for (Map.Entry<String, Integer> entry : bindings.entrySet()) {
-            if (!DEFAULT_KEY_BINDINGS.containsKey(entry.getKey())) {
+            if (!defaults.containsKey(entry.getKey())) {
                 throw new IllegalArgumentException("Unsupported configurable action: " + entry.getKey());
             }
             Integer code = entry.getValue();
@@ -109,6 +153,16 @@ public final class GameSettings {
             if (!assigned.add(code)) throw new IllegalArgumentException("Duplicate key assignment detected for key code " + code);
         }
         return Collections.unmodifiableMap(complete);
+    }
+
+    // P1/P2 키 중복 검사
+    public static void validateBattleKeyBindings(
+            Map<String, Integer> p1, Map<String, Integer> p2) {
+        for (Integer code : p1.values()) {
+            if (p2.containsValue(code)) {
+                throw new IllegalArgumentException("Duplicate P1/P2 key: " + code);
+            }
+        }
     }
 
     /**
@@ -156,6 +210,15 @@ public final class GameSettings {
         return keyBindings;
     }
 
+    // P1/P2 키 설정 조회
+    public Map<String, Integer> p1KeyBindings() {
+        return p1KeyBindings;
+    }
+
+    public Map<String, Integer> p2KeyBindings() {
+        return p2KeyBindings;
+    }
+
     /**
      * Resolves the Dimension corresponding to the current window size preset.
      */
@@ -176,7 +239,8 @@ public final class GameSettings {
     }
 
     public GameSettings withWindowSizePreset(int preset) {
-        return new GameSettings(preset, colorVisionMode, piecePatternsEnabled, keyBindings, difficulty);
+        return new GameSettings(preset, colorVisionMode, piecePatternsEnabled, keyBindings, difficulty,
+                p1KeyBindings, p2KeyBindings);
     }
 
     public GameSettings withColorBlindMode(boolean enabled) {
@@ -184,15 +248,33 @@ public final class GameSettings {
     }
 
     public GameSettings withColorVisionMode(ColorVisionMode mode) {
-        return new GameSettings(windowSizePreset, mode, mode.defaultPatternsEnabled(), keyBindings, difficulty);
+        return new GameSettings(windowSizePreset, mode, mode.defaultPatternsEnabled(), keyBindings, difficulty,
+                p1KeyBindings, p2KeyBindings);
     }
 
     public GameSettings withPiecePatternsEnabled(boolean enabled) {
-        return new GameSettings(windowSizePreset, colorVisionMode, enabled, keyBindings, difficulty);
+        return new GameSettings(windowSizePreset, colorVisionMode, enabled, keyBindings, difficulty,
+                p1KeyBindings, p2KeyBindings);
     }
 
     public GameSettings withKeyBindings(Map<String, Integer> bindings) {
-        return new GameSettings(windowSizePreset, colorVisionMode, piecePatternsEnabled, bindings, difficulty);
+        return new GameSettings(windowSizePreset, colorVisionMode, piecePatternsEnabled, bindings, difficulty,
+                p1KeyBindings, p2KeyBindings);
+    }
+
+    // P1/P2 키 설정 변경
+    public GameSettings withP1KeyBindings(Map<String, Integer> bindings) {
+        return withBattleKeyBindings(bindings, p2KeyBindings);
+    }
+
+    public GameSettings withP2KeyBindings(Map<String, Integer> bindings) {
+        return withBattleKeyBindings(p1KeyBindings, bindings);
+    }
+
+    public GameSettings withBattleKeyBindings(
+            Map<String, Integer> p1, Map<String, Integer> p2) {
+        return new GameSettings(windowSizePreset, colorVisionMode, piecePatternsEnabled,
+                keyBindings, difficulty, p1, p2);
     }
 
     @Override
@@ -203,12 +285,15 @@ public final class GameSettings {
                 && colorVisionMode == that.colorVisionMode
                 && piecePatternsEnabled == that.piecePatternsEnabled
                 && difficulty == that.difficulty
-                && Objects.equals(keyBindings, that.keyBindings);
+                && Objects.equals(keyBindings, that.keyBindings)
+                && Objects.equals(p1KeyBindings, that.p1KeyBindings)
+                && Objects.equals(p2KeyBindings, that.p2KeyBindings);
     }
 
     @Override
     public int hashCode() {
-        return Objects.hash(windowSizePreset, colorVisionMode, piecePatternsEnabled, keyBindings, difficulty);
+        return Objects.hash(windowSizePreset, colorVisionMode, piecePatternsEnabled, keyBindings, difficulty,
+                p1KeyBindings, p2KeyBindings);
     }
 
     @Override
@@ -220,6 +305,8 @@ public final class GameSettings {
                 ", piecePatternsEnabled=" + piecePatternsEnabled +
                 ", difficulty=" + difficulty +
                 ", keyBindings=" + keyBindings +
+                ", p1KeyBindings=" + p1KeyBindings +
+                ", p2KeyBindings=" + p2KeyBindings +
                 '}';
     }
 }
