@@ -65,6 +65,7 @@ public class BattleModeSelectPanel extends JPanel {
     /** 선택된 모드를 표시만 한다. 리스너는 호출하지 않는다. */
     public void setSelected(BattleMode mode) {
         selected = mode;
+        buttons.forEach((choice, button) -> button.setSelected(choice == mode));
         selectedLabel.setText(mode == null ? "모드를 선택하세요." : "선택된 모드: " + mode);
     }
 

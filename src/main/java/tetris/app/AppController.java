@@ -91,6 +91,7 @@ public class AppController {
     private GameSettings settings;
     private String persistenceError;
     private boolean settingsFromGame;
+    private boolean settingsFromBattle;
     private final WindowSizeConfirmation windowSizeConfirmation;
 
     public AppController(Runnable onExit) {
@@ -165,6 +166,8 @@ public class AppController {
         gameScreen.setInputHandler(inputHandler);
         gameScreen.setMenuActions(this::resumeGame, this::showSettings,
                 this::showStartMenu, this::exit);
+        battleScreen.setMenuActions(battleScreen::hideMenu, this::showSettings,
+                this::showStartMenu, this::exit);
 
         if (settingsService != null) {
             settingsScreen.setOnSaveValues(values -> updateSettings(
@@ -209,11 +212,13 @@ public class AppController {
 
     public void showStartMenu() {
         settingsFromGame = false;
+        settingsFromBattle = false;
         activate(AppState.START_MENU, startMenu::showScreen);
     }
 
     /** 시작 메뉴 "대전 모드": 한 PC 2인 대전의 모드 선택 화면으로 이동한다. */
     public void showBattleSelect() {
+        settingsFromBattle = false;
         activate(AppState.BATTLE_SELECT, battleSelectScreen::showScreen);
     }
 
@@ -233,8 +238,12 @@ public class AppController {
      */
     public void showBattleScreen(BattleMode mode, String leftName, String rightName) {
         Objects.requireNonNull(mode);
+        settingsFromBattle = false;
+        battleScreen.hideMenu();
         battleScreen.hideResult();
         battleScreen.clearKeys();
+        battleScreen.setMenuActions(battleScreen::hideMenu, this::showSettings,
+                this::showStartMenu, this::exit);
         battleScreen.setStatusMessage(null, false);
         battleScreen.setControlsGuide("", "");
         battleScreen.setPlayerNames(leftName, rightName);
@@ -245,6 +254,7 @@ public class AppController {
 
     /** 시작 메뉴 "P2P 대전": 등록된 P2P 화면(없으면 준비 중 화면)으로 이동한다. */
     public void showP2PLobby() {
+        settingsFromBattle = false;
         activate(AppState.P2P_LOBBY, () -> {
             if (p2pLobbyOnShow != null) p2pLobbyOnShow.run();
             else p2pPlaceholder.showScreen();
@@ -292,6 +302,7 @@ public class AppController {
         loop.stop();
         gameScreen.hideMenu();
         settingsFromGame = false;
+        settingsFromBattle = false;
 
         engine.newGame(mode, settingsService == null
                 ? Difficulty.NORMAL : settingsService.current().difficulty());
@@ -314,7 +325,9 @@ public class AppController {
         requireEdt();
         if (state == AppState.EXIT) return;
         if (state == AppState.GAME) showGameMenu();
+        if (state == AppState.BATTLE && !battleScreen.isMenuVisible()) battleScreen.showMenu();
         settingsFromGame = state == AppState.GAME_MENU;
+        settingsFromBattle = state == AppState.BATTLE;
         activate(AppState.SETTINGS, settingsScreen::showScreen);
     }
 
@@ -326,6 +339,11 @@ public class AppController {
             state = AppState.GAME_MENU;
             layout.show(view, AppState.GAME.name());
             gameScreen.showMenu();
+        } else if (settingsFromBattle) {
+            settingsFromBattle = false;
+            state = AppState.BATTLE;
+            layout.show(view, AppState.BATTLE.name());
+            battleScreen.showMenu();
         } else {
             showStartMenu();
         }
@@ -740,7 +758,7 @@ public class AppController {
         if (state == AppState.EXIT) return;
 
         if (next != AppState.GAME
-                && !(next == AppState.SETTINGS && settingsFromGame)) {
+                && !(next == AppState.SETTINGS && (settingsFromGame || settingsFromBattle))) {
             cancelLineClearPause();
             loop.stop();
             pauseEngine();

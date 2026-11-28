@@ -2,6 +2,10 @@ package tetris.ui;
 
 import java.awt.Color;
 import java.awt.Font;
+import java.awt.FontFormatException;
+import java.io.IOException;
+import java.io.InputStream;
+import java.util.ArrayList;
 import javax.swing.BorderFactory;
 import javax.swing.UIManager;
 import javax.swing.border.Border;
@@ -25,6 +29,9 @@ public final class AppTheme {
     static final Color PURPLE = new Color(191, 60, 255);
     static final Color RED = new Color(255, 59, 48);
 
+    private static final Font REGULAR = loadFont("Regular");
+    private static final Font BOLD = loadFont("Bold");
+
     private static boolean installed;
 
     private AppTheme() {
@@ -36,6 +43,16 @@ public final class AppTheme {
             return;
         }
         installed = true;
+
+        // Keep each control's default size and emphasis, including dialog and input text.
+        for (Object key : new ArrayList<>(UIManager.getLookAndFeelDefaults().keySet())) {
+            if (key instanceof String name && name.endsWith(".font")) {
+                Font original = UIManager.getFont(key);
+                if (original != null) {
+                    UIManager.put(key, font(original.getStyle(), original.getSize2D()));
+                }
+            }
+        }
 
         Font body = font(Font.PLAIN, 14f);
         UIManager.put("Panel.background", BACKGROUND);
@@ -56,7 +73,18 @@ public final class AppTheme {
     }
 
     static Font font(int style, float size) {
-        return new Font(Font.MONOSPACED, style, Math.round(size)).deriveFont(size);
+        Font face = (style & Font.BOLD) == 0 ? REGULAR : BOLD;
+        return face.deriveFont(style, size);
+    }
+
+    private static Font loadFont(String weight) {
+        String path = "/fonts/NanumGothicCoding-" + weight + ".ttf";
+        try (InputStream stream = AppTheme.class.getResourceAsStream(path)) {
+            if (stream == null) throw new IllegalStateException("Missing UI font " + path);
+            return Font.createFont(Font.TRUETYPE_FONT, stream);
+        } catch (IOException | FontFormatException error) {
+            throw new IllegalStateException("Cannot read UI font " + path, error);
+        }
     }
 
     static Border frameBorder(int vertical, int horizontal) {

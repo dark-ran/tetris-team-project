@@ -83,7 +83,7 @@ final class ThemedButton extends JButton {
     }
 
     private Color borderColor() {
-        if (isFocusOwner()) {
+        if (isFocusOwner() || isSelected()) {
             return AppTheme.YELLOW;
         }
         if (style == Style.DANGER) {

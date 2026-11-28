@@ -6,6 +6,7 @@ import java.awt.event.WindowEvent;
 import javax.swing.JFrame;
 import javax.swing.SwingUtilities;
 import tetris.app.AppController;
+import tetris.lan.LanLobby;
 import tetris.ui.AppTheme;
 
 /** Swing 창의 생성과 종료를 연결하는 진입점. */
@@ -15,10 +16,13 @@ public class Main {
         SwingUtilities.invokeLater(() -> {
             JFrame window = new JFrame("Tetris");
             AppController app = new AppController(window::dispose);
+            LanLobby lobby = new LanLobby(app);
+            app.setP2PLobby(lobby, lobby::showLobby);
             window.setDefaultCloseOperation(JFrame.DO_NOTHING_ON_CLOSE);
             window.addWindowListener(new WindowAdapter() {
                 @Override
                 public void windowClosing(WindowEvent event) {
+                    lobby.close();
                     app.exit();
                 }
             });

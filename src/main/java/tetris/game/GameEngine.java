@@ -40,6 +40,7 @@ public final class GameEngine {
     private int spawnedPieces;
     private int totalClearedRows;
     private int pendingItems;
+    private LineClearSnapshot lineClear;
 
     public GameEngine() {
         this(RandomGenerator.getDefault());
@@ -113,6 +114,7 @@ public final class GameEngine {
         spawnedPieces = 0;
         totalClearedRows = 0;
         pendingItems = 0;
+        lineClear = null;
         this.mode = mode;
         this.difficulty = difficulty;
         contacted = false;
@@ -163,6 +165,8 @@ public final class GameEngine {
     public int receiveAttack(List<AttackLine> lines) {
         return incomingAttacks.offer(lines);
     }
+
+    LineClearSnapshot lineClear() { return lineClear; }
 
     public boolean isGameOver() {
         return phase == GamePhase.GAME_OVER;
@@ -224,6 +228,10 @@ public final class GameEngine {
         int lineScoreMultiplier = LineClearBonus.multiplier(board, rows);
         List<AttackLine> attackLines = BattleRules.sendsAttack(currentPiece.itemType(), rows.size())
                 ? attackLinesFrom(rows) : List.of();
+        if (!rows.isEmpty()) {
+            lineClear = new LineClearSnapshot(totalClearedRows + rows.size(), board,
+                    rows.stream().sorted().toList());
+        }
         int clearedRows = board.clearRows(rows);
         int previousClearedRows = totalClearedRows;
         totalClearedRows += clearedRows;

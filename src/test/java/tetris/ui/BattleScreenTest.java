@@ -234,4 +234,38 @@ class BattleScreenTest {
             assertTrue(bounds.y + bounds.height <= minimum.height);
         });
     }
+
+    @Test
+    @DisplayName("대전 중 일시정지 메뉴가 열리면 게임 키를 막고 Esc로 재개하며 결과 창이 뜨면 닫힌다")
+    void pauseMenuBlocksGameKeysAndClosesOnResumeOrResult() throws Exception {
+        SwingUtilities.invokeAndWait(() -> {
+            BattleScreen screen = new BattleScreen();
+            AtomicInteger moves = new AtomicInteger();
+            AtomicInteger settings = new AtomicInteger();
+            screen.setMenuActions(screen::hideMenu, settings::incrementAndGet, () -> { }, () -> { });
+            screen.bindKey(KeyEvent.VK_ESCAPE, screen::showMenu, null);
+            screen.bindKey(KeyEvent.VK_A, moves::incrementAndGet, null);
+
+            press(screen, KeyStroke.getKeyStroke(KeyEvent.VK_A, 0, false));
+            assertEquals(1, moves.get());
+            assertFalse(screen.isMenuVisible());
+
+            press(screen, KeyStroke.getKeyStroke(KeyEvent.VK_ESCAPE, 0, false));
+            assertTrue(screen.isMenuVisible());
+            paint(screen, 884, 700);
+            press(screen, KeyStroke.getKeyStroke(KeyEvent.VK_A, 0, false));
+            assertEquals(1, moves.get());
+
+            press(screen, KeyStroke.getKeyStroke(KeyEvent.VK_ESCAPE, 0, false));
+            assertFalse(screen.isMenuVisible());
+            press(screen, KeyStroke.getKeyStroke(KeyEvent.VK_A, 0, false));
+            assertEquals(2, moves.get());
+
+            screen.showMenu();
+            assertTrue(screen.isMenuVisible());
+            screen.showResult(BattleOutcome.DRAW, "대기실로", () -> { }, null, null);
+            assertFalse(screen.isMenuVisible());
+            assertTrue(screen.isResultVisible());
+        });
+    }
 }

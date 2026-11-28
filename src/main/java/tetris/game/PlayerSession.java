@@ -76,7 +76,7 @@ public final class PlayerSession {
     }
 
     public synchronized PlayerSnapshot snapshot() {
-        return PlayerSnapshot.of(engine.state(), mode);
+        return PlayerSnapshot.of(engine.state(), mode, engine.lineClear());
     }
 
     /** 현재 레벨의 자동 낙하 간격(ms). 플레이어별 낙하 스레드가 사용한다. */

@@ -73,7 +73,9 @@ public class GameOverScreen extends JPanel {
         nameField.setBorder(BorderFactory.createCompoundBorder(
                 BorderFactory.createLineBorder(AppTheme.BORDER),
                 BorderFactory.createEmptyBorder(8, 12, 8, 12)));
-        nameField.setPreferredSize(new Dimension(440, Math.max(44, nameField.getPreferredSize().height)));
+        int textHeight = nameField.getFontMetrics(nameField.getFont()).getHeight();
+        var insets = nameField.getInsets();
+        nameField.setPreferredSize(new Dimension(440, textHeight + insets.top + insets.bottom));
         nameField.getAccessibleContext().setAccessibleName("랭킹에 등록할 이름");
     }
 
